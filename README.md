@@ -26,29 +26,22 @@ npm install
 
 ## Run — Option A: local dev, no database (fastest)
 
-The frontend can run entirely on mock data, or against the API using its in-memory backend.
+One command runs both the API (in-memory backend) and the web app (pointed at the API via `apps/web/.env`):
 
-Mock-only (no backend):
 ```bash
-# apps/web/.env or shell: VITE_DATA_MODE=mock
+npm run dev
+# API: http://localhost:3001    Web: http://localhost:5173
+```
+
+Then open http://localhost:5173 and sign in with a demo user below.
+
+Run individually if preferred:
+```bash
+npm run dev:api        # http://localhost:3001  (DATA_BACKEND defaults to memory)
 npm run dev:web        # http://localhost:5173
 ```
 
-Frontend + real API (in-memory backend, no Postgres):
-```bash
-# terminal 1 — API
-#   env: DATA_BACKEND=memory, JWT_SECRET=<something>
-npm run dev:api        # http://localhost:3001
-
-# terminal 2 — Web pointed at the API
-#   env: VITE_DATA_MODE=http, VITE_API_BASE_URL=http://localhost:3001/api
-npm run dev:web        # http://localhost:5173
-```
-
-On Windows PowerShell, set env inline, e.g.:
-```powershell
-$env:DATA_BACKEND="memory"; $env:JWT_SECRET="dev-secret"; npm run dev:api
-```
+Mock-only (no backend at all): set `VITE_DATA_MODE=mock` in `apps/web/.env`, then `npm run dev:web`.
 
 ## Run — Option B: full stack with PostgreSQL (Docker)
 
