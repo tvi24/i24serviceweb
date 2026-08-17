@@ -1,0 +1,99 @@
+import { PRIORITIES, type SlaConfig } from '@incident/shared';
+import { useEffect, useState } from 'react';
+import { Button, Card, ErrorState, LoadingSkeleton } from '../components/ui';
+import { useAuth } from '../auth/AuthContext';
+import { useSlaConfig, useUpdateSlaConfig } from '../hooks/useIncidents';
+
+export function SlaConfigPage() {
+  const { hasRole } = useAuth();
+  const canEdit = hasRole('manager');
+  const { data, isLoading, isError, error } = useSlaConfig();
+  const update = useUpdateSlaConfig();
+  const [draft, setDraft] = useState<SlaConfig | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => { if (data) setDraft(structuredClone(data)); }, [data]);
+
+  if (isLoading || !draft) return <LoadingSkeleton rows={6} />;
+  if (isError) return <ErrorState message={(error as Error)?.message ?? 'Failed to load config.'} />;
+
+  function setTarget(p: string, key: 'responseMin' | 'resolutionMin' | 'resolutionBd', value: number) {
+    setDraft((d) => {
+      if (!d) return d;
+      const next = structuredClone(d);
+      (next.targets[p as keyof typeof next.targets] as any)[key] = value;
+      return next;
+    });
+    setSaved(false);
+  }
+
+  return (
+    <section>
+      <div className="section-title">
+        <div>
+          <h1>SLA Configuration</h1>
+          <p className="muted">Editable workshop targets. {canEdit ? '' : '(Read-only — manager access required to edit.)'}</p>
+        </div>
+      </div>
+
+      <Card>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>Priority</th><th>Response (min)</th><th>Resolution</th></tr>
+            </thead>
+            <tbody>
+              {PRIORITIES.map((p) => {
+                const t = draft.targets[p];
+                const bd = typeof t.resolutionBd === 'number';
+                return (
+                  <tr key={p} style={{ cursor: 'default' }}>
+                    <td><strong>{p}</strong></td>
+                    <td>
+                      <input className="input" type="number" min={1} value={t.responseMin} disabled={!canEdit}
+                        onChange={(e) => setTarget(p, 'responseMin', Number(e.target.value))} style={{ maxWidth: 120 }} />
+                    </td>
+                    <td>
+                      {bd ? (
+                        <span>{t.resolutionBd} business days</span>
+                      ) : (
+                        <input className="input" type="number" min={1} value={t.resolutionMin} disabled={!canEdit}
+                          onChange={(e) => setTarget(p, 'resolutionMin', Number(e.target.value))} style={{ maxWidth: 120 }} />
+                      )}
+                      {bd && canEdit && (
+                        <input className="input" type="number" min={1} value={t.resolutionBd} aria-label={`${p} resolution business days`}
+                          onChange={(e) => setTarget(p, 'resolutionBd', Number(e.target.value))} style={{ maxWidth: 120, marginTop: 6 }} />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="row" style={{ marginTop: 'var(--space-4)' }}>
+          <div className="field" style={{ maxWidth: 220 }}>
+            <label>At-risk threshold (%)</label>
+            <input className="input" type="number" min={1} max={99} value={draft.atRiskPct} disabled={!canEdit}
+              onChange={(e) => { setDraft({ ...draft, atRiskPct: Number(e.target.value) }); setSaved(false); }} />
+          </div>
+          <div className="field" style={{ maxWidth: 220 }}>
+            <label>CSAT reminders (max)</label>
+            <input className="input" type="number" min={0} max={10} value={draft.reminderMax} disabled={!canEdit}
+              onChange={(e) => { setDraft({ ...draft, reminderMax: Number(e.target.value) }); setSaved(false); }} />
+          </div>
+        </div>
+
+        {canEdit && (
+          <div className="row" style={{ marginTop: 'var(--space-3)' }}>
+            <Button disabled={update.isPending} onClick={() => update.mutate(draft, { onSuccess: () => setSaved(true) })}>
+              {update.isPending ? 'Saving…' : 'Save configuration'}
+            </Button>
+            {saved && <span className="badge badge--within_target">Saved</span>}
+          </div>
+        )}
+      </Card>
+    </section>
+  );
+}

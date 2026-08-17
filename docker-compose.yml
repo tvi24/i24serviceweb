@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: incident
+      POSTGRES_PASSWORD: incident
+      POSTGRES_DB: incident
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incident"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      PORT: 3001
+      DATA_BACKEND: pg
+      DATABASE_URL: postgres://incident:incident@postgres:5432/incident
+      JWT_SECRET: ${JWT_SECRET:-workshop-dev-secret-change-me}
+      JWT_EXPIRES_IN: 8h
+      AI_PROVIDER: rules
+      LOG_LEVEL: info
+      CORS_ORIGIN: http://localhost:8080
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_DATA_MODE: http
+        VITE_API_BASE_URL: http://localhost:3001/api
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

@@ -1,0 +1,88 @@
+version: "1.0.0"
+feature: incident-management
+platform: kiro
+language: th
+state:
+  mode: comprehensive
+  status: active
+context-summary:
+  product: "AI-Assisted Incident Management (APP-03) — enterprise IT incident intake, triage, SLA tracking, alerting, resolution, CSAT, KPI, audit"
+  stack: "TypeScript/JavaScript — React + Vite frontend, Node.js 24 LTS + Express REST API, PostgreSQL 18, Docker Compose"
+  scope: new
+  teamSize: small
+  complexity: High
+  impact: workshop
+sharedPhases:
+  - requirements
+  - design
+  - tasks
+artifacts:
+  requirements:
+    status: approved
+    files:
+      - .kiro/specs/incident-management/requirements.md
+  tasks:
+    status: approved
+    files:
+      - .kiro/specs/incident-management/tasks.md
+  implement:
+    status: approved
+    completedGroups:
+      - "G1 Setup"
+      - "G2 Frontend + Mock"
+      - "G3 Frontend + Backend (memory verified; pg code-complete, live DB pending Docker)"
+      - "G4 Extras"
+      - "G5 Test/Verify (57 tests)"
+      - "G6 Deploy (compose validated; live container run pending Docker)"
+    files:
+      - apps/api
+      - apps/web
+      - packages/shared
+      - docker-compose.yml
+  design:
+    status: approved
+    files:
+      - .kiro/specs/incident-management/design.md
+      - .kiro/specs/incident-management/design/components.md
+      - .kiro/specs/incident-management/design/data-model.md
+      - .kiro/specs/incident-management/design/api-spec.md
+      - .kiro/specs/incident-management/design/integration.md
+      - .kiro/specs/incident-management/design/implementation.md
+      - .kiro/specs/incident-management/design/operations.md
+      - .kiro/specs/incident-management/design/testing-strategy.md
+      - .kiro/specs/incident-management/design/nfr.md
+      - .kiro/steering/design-system.md
+versions:
+  resolved_at: "2026-08-17"
+  source: "mixed"
+  map:
+    node: "24.x"
+    typescript: "5.x"
+    react: "19.x"
+    vite: "6.x"
+    express: "5.x"
+    pg: "8.x"
+    "@tanstack/react-query": "5.x"
+    zod: "3.x"
+    jsonwebtoken: "9.x"
+    pino: "9.x"
+    vitest: "4.x"
+    postgres: "18"
+decisions:
+  requirements:
+    delivery-boundary: "Web Portal intake + in-app Central Alert Center working; Mail/LINE/Phone/outbound = documented integration boundaries only"
+    auth: "Local workshop auth, predefined synthetic users, per-request RBAC, no external IdP"
+    sla-defaults: "P1 15m/4h, P2 30m/8h, P3 4h/3bd, P4 8h/5bd (editable config)"
+  design:
+    repo: "monorepo (npm workspaces): apps/web, apps/api, packages/shared"
+    data-layer: "Phase1 frontend mock JSON -> Phase2 Express+PostgreSQL via repository seam"
+    db-access: "pg driver + parameterized SQL + custom migration runner"
+    auth: "stateless JWT Bearer, RBAC claims"
+    ai-adapter: "rules/mock default + optional Bedrock (env-gated)"
+    fe-state: "TanStack Query"
+    testing: "Vitest + Supertest + React Testing Library"
+    correctness: "example-based unit tests for critical rules"
+    observability: "Minimal (pino + health)"
+    error-tracking: "log-based with errorId"
+    lifecycle: "health + readiness + graceful shutdown"
+    ui: "clean enterprise console; blue primary + P1-P4/semantic colors; Inter; Lucide"

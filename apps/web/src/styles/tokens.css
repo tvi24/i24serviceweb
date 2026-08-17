@@ -1,0 +1,69 @@
+/* Runtime design-token source of truth. Keep in sync with .kiro/steering/design-system.md */
+:root {
+  /* Surfaces / text */
+  --color-bg: #f6f8fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef2f7;
+  --color-border: #dbe2ea;
+  --color-text: #0f1b2d;
+  --color-text-muted: #566072;
+
+  /* Brand */
+  --color-primary: #1f5fd6;
+  --color-primary-hover: #1a4fb3;
+  --color-primary-weak: #e7effb;
+  --color-focus: #1f5fd6;
+
+  /* Semantic */
+  --color-success: #1f8a53;
+  --color-success-weak: #e6f4ec;
+  --color-warning: #b7791f;
+  --color-warning-weak: #fbf1de;
+  --color-danger: #c23b3b;
+  --color-danger-weak: #fbe9e9;
+  --color-info: #2b6cb0;
+  --color-info-weak: #e6f0f8;
+
+  /* Priority */
+  --color-p1: #c23b3b;
+  --color-p2: #d97706;
+  --color-p3: #b7791f;
+  --color-p4: #64748b;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 26px;
+  --fs-2xl: 34px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* Layout / spacing */
+  --container-max: 1200px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(15, 27, 45, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 27, 45, 0.08);
+  --shadow-lg: 0 12px 28px rgba(15, 27, 45, 0.1);
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+}

@@ -1,0 +1,13 @@
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline__item {
+  position: relative;
+  padding: 0 0 var(--space-4) var(--space-5);
+  border-left: 2px solid var(--color-border);
+}
+.timeline__item:last-child { border-left-color: transparent; padding-bottom: 0; }
+.timeline__dot {
+  position: absolute; left: -7px; top: 2px;
+  width: 12px; height: 12px; border-radius: 999px;
+  background: var(--color-primary); border: 2px solid var(--color-surface);
+}
+.timeline__head { display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; font-size: var(--fs-sm); }
