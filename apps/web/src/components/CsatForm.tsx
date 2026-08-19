@@ -1,8 +1,10 @@
 import { Star } from 'lucide-react';
 import { useState } from 'react';
+import { useT } from '../i18n/I18nContext';
 import { Button } from './ui';
 
 export function CsatForm({ onSubmit, busy }: { onSubmit: (rating: number, comment?: string) => void; busy?: boolean }) {
+  const t = useT();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
@@ -10,7 +12,7 @@ export function CsatForm({ onSubmit, busy }: { onSubmit: (rating: number, commen
 
   function submit() {
     if (rating < 1 || rating > 5) {
-      setError('Please select a rating from 1 to 5.');
+      setError(t('csat.error'));
       return;
     }
     setError(null);
@@ -19,14 +21,14 @@ export function CsatForm({ onSubmit, busy }: { onSubmit: (rating: number, commen
 
   return (
     <div className="stack">
-      <div className="row" role="radiogroup" aria-label="Satisfaction rating">
+      <div className="row" role="radiogroup" aria-label={t('csat.ratingAria')}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
             role="radio"
             aria-checked={rating === n}
-            aria-label={`${n} star${n > 1 ? 's' : ''}`}
+            aria-label={t(n > 1 ? 'csat.starAria_plural' : 'csat.starAria', { n })}
             onMouseEnter={() => setHover(n)}
             onMouseLeave={() => setHover(0)}
             onClick={() => setRating(n)}
@@ -37,11 +39,11 @@ export function CsatForm({ onSubmit, busy }: { onSubmit: (rating: number, commen
         ))}
       </div>
       <div className="field">
-        <label htmlFor="csat-comment">Comment (optional)</label>
+        <label htmlFor="csat-comment">{t('csat.comment')}</label>
         <textarea id="csat-comment" className="textarea" value={comment} onChange={(e) => setComment(e.target.value)} />
       </div>
       {error && <span className="field__error" role="alert">{error}</span>}
-      <Button onClick={submit} disabled={busy}>{busy ? 'Submitting…' : 'Submit rating'}</Button>
+      <Button onClick={submit} disabled={busy}>{busy ? t('csat.submitting') : t('csat.submit')}</Button>
     </div>
   );
 }

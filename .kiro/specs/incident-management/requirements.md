@@ -282,3 +282,42 @@ Mail, LINE OA, Phone/Quick Call, and outbound external notification channels are
 4. THE Incident_Management_System SHALL provide documented redeployment steps for the workshop target environment.
 5. THE Incident_Management_System SHALL provide documented rollback steps for the workshop target environment.
 6. WHEN a deployed release starts, THE Incident_Management_System SHALL make runtime health available through the Health_Endpoint.
+
+---
+
+## Add-on
+
+> Change requests approved after the initial spec was accepted. Implemented on top of the delivered scope; does not alter Requirements 1–15.
+
+### Requirement 16: Theme Preference (Light / Dark) — Add-on
+
+**User Story:** As any authenticated or unauthenticated user of the Web_Portal, I want to switch between a light and a dark visual theme, so that I can use the interface comfortably in different lighting conditions per common enterprise practice.
+
+Rationale: user-requested enhancement (2026-08-17) following UX testing. Light remains the product default per the design-system policy.
+
+#### Acceptance Criteria
+
+1. THE Web_Portal SHALL provide a control that switches the interface between a light theme and a dark theme.
+2. THE Web_Portal SHALL default to the light theme when no stored theme preference and no operating-system preference are available.
+3. WHEN no stored theme preference exists, THE Web_Portal SHALL initialize the theme from the operating-system color-scheme preference (`prefers-color-scheme`).
+4. WHEN a user selects a theme, THE Web_Portal SHALL persist the selected theme in browser local storage and apply it on subsequent visits.
+5. THE Web_Portal SHALL expose the theme control on both the authenticated application shell and the login screen.
+6. THE Web_Portal SHALL render both themes using the shared design tokens only, without hardcoded colors in components, and SHALL keep text/background contrast at WCAG 2.2 AA.
+7. THE Web_Portal SHALL keep the theme control keyboard operable with a visible focus indicator and an accessible label reflecting the current state.
+
+### Requirement 17: Interface Localization (Thai / English) — Add-on
+
+**User Story:** As a user of the Web_Portal, I want the interface available in Thai and English, so that I can operate the system in my preferred language per common enterprise practice.
+
+Rationale: user-requested enhancement (2026-08-17). Localization covers interface text only; user-entered Incident content is preserved as entered.
+
+#### Acceptance Criteria
+
+1. THE Web_Portal SHALL provide a control that switches the interface language between Thai and English.
+2. THE Web_Portal SHALL translate interface labels, navigation, form fields, buttons, table headers, badges, and empty/loading/error state text for the selected language.
+3. THE Web_Portal SHALL present localized display labels for enumerated values (Case status, Priority, SLA_State, Role) without changing stored enum values.
+4. THE Web_Portal SHALL preserve user-entered content (Incident title, description, notes) in its original form regardless of the selected language.
+5. WHEN no stored language preference exists, THE Web_Portal SHALL initialize the language from the browser language, defaulting to English when the browser language is neither Thai nor English.
+6. WHEN a user selects a language, THE Web_Portal SHALL persist the selected language in browser local storage and apply it on subsequent visits.
+7. THE Web_Portal SHALL expose the language control on both the authenticated application shell and the login screen.
+8. IF a translation key is missing for the selected language, THEN THE Web_Portal SHALL fall back to the English string without exposing a raw key.

@@ -47,7 +47,7 @@ Legend: each task lists the requirements (R#) it serves. Test/verify is concentr
 - [x] 3.8 Alerts + escalation: `alertService` (priority/at-risk/breach/status/escalation alerts, scoped recipients, ack); alerts endpoints. (R6, BR-05, NFR-04)
 - [x] 3.9 Workflow + resolution: notes, validated status transitions, resolve (code+note enforce), confirm/reopen/close, CSAT (rating + range) in `incidentService`. (R7, R8, BR-04)
 - [x] 3.10 KPI + audit: `kpiService` (aggregations + no-data), `auditService` (append-only writer/reader), audit endpoint; `/health`. (R9, R10, R14)
-- [x] 3.11 PostgreSQL: `pg` pool, migration runner + `migrations/*.sql` (up/down), seed script; `pg` repository implementations (parameterized SQL). (R12, R15) **Code-complete + type-checks clean. Live DB round-trip NOT yet verified — Docker engine did not start in this environment (see note).**
+- [x] 3.11 PostgreSQL: `pg` pool, migration runner + `migrations/*.sql` (up/down), seed script; `pg` repository implementations (parameterized SQL). (R12, R15) **LIVE-VERIFIED 2026-08-17 against PostgreSQL 17.6 (portable, no Docker): migrate → 10 tables, seed → all fixtures inserted, API in pg mode round-trip (health/login/RBAC list/intake write). Fixed a real bug found here: id/`*_id` columns were `uuid` but app IDs are strings (`u-emma`, `i-1001`) → changed to `text`.**
 - [x] 3.12 Wire frontend to API: `VITE_DATA_MODE=http`, Bearer token attached, hooks reused; `docker-compose.yml` (postgres + api + web) + Dockerfiles + `.env.example`. **Verify gate — PASSED (memory backend): API 12/12 Supertest, live HTTP round-trip (health/login/RBAC list/intake), web builds clean in http mode. PostgreSQL compose not run (Docker unavailable this session).** (R15)
 
 > Verification note: The API is fully verified end-to-end against the in-memory backend (real HTTP: `/health` ok, JWT login, RBAC-scoped `/incidents`, intake `INC-2026-001007`). The PostgreSQL layer (pg repo with parameterized SQL, migrations up/down, seed, docker-compose) is written and type-checks, but a live PostgreSQL round-trip could not be executed because Docker Desktop's engine did not finish starting in this session. To verify locally once Docker is running: `docker compose up -d --build` then open `http://localhost:8080`.
@@ -77,3 +77,16 @@ Legend: each task lists the requirements (R#) it serves. Test/verify is concentr
 
 - [x] 6.1 Docker Compose + Dockerfiles + README runbook (deploy/redeploy/rollback). `docker compose config` validates OK. Live `docker compose up` + `/api/health` green pending a running Docker engine (unavailable this session). (R15)
 - [x] 6.2 Deployment evidence notes (health, smoke login, RBAC, intake ticket, seed data) recorded in `.aidlc/workflow/incident-management/audit.md`. (R14, R15)
+
+---
+
+## Add-on Group A — Theme & Localization (R16, R17)
+
+Approved 2026-08-17 (post-UX-testing change request). Zero new runtime dependencies.
+
+- [x] A.1 Add `[data-theme="dark"]` token overrides to `apps/web/src/styles/tokens.css` (surfaces, text, brand, semantic, priority, shadows); light stays `:root`. (R16)
+- [x] A.2 `theme/ThemeContext.tsx`: `ThemeProvider` + `useTheme()` — resolve localStorage → prefers-color-scheme → light; apply `documentElement[data-theme]`; persist. (R16)
+- [x] A.3 `i18n/`: `I18nContext.tsx` (`I18nProvider` + `useT`), `en.ts` + `th.ts` dictionaries (same keys), enum label helpers; localStorage → navigator.language → en; missing key → en fallback. (R17)
+- [x] A.4 `ThemeToggle` + `LanguageSwitch` components (accessible, keyboard, focus-visible); wire into `AppShell` bar and `LoginPage`; wrap providers in `main.tsx`. (R16, R17)
+- [x] A.5 Route all `pages/*` + `components/*` interface strings through `t()`; localized enum display labels. (R17)
+- [x] A.6 Verify gate: `tsc`/build clean, existing 14 web tests still pass, dev server smoke test (toggle theme persists across reload; TH/EN switches all labels; contrast AA both themes). **PASSED: web build clean, 14/14 web tests pass, full suite 57/57, dev servers serve HTTP 200.** (R16, R17)

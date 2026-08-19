@@ -2,12 +2,19 @@ import type { Alert, AlertSeverity } from '@incident/shared';
 import { BellRing, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button, Card, EmptyState, ErrorState, LoadingSkeleton } from '../components/ui';
+import { useT } from '../i18n/I18nContext';
+import type { TFunc } from '../i18n/I18nContext';
 import { useAckAlert, useAlerts } from '../hooks/useIncidents';
 
 const SEVERITY_ORDER: AlertSeverity[] = ['danger', 'warning', 'info'];
-const SEVERITY_LABEL: Record<AlertSeverity, string> = { danger: 'Critical', warning: 'Warning', info: 'Info' };
+const SEVERITY_KEY: Record<AlertSeverity, 'alerts.sev.danger' | 'alerts.sev.warning' | 'alerts.sev.info'> = {
+  danger: 'alerts.sev.danger',
+  warning: 'alerts.sev.warning',
+  info: 'alerts.sev.info',
+};
 
 export function AlertCenterPage() {
+  const t = useT();
   const { data, isLoading, isError, error } = useAlerts();
   const ack = useAckAlert();
 
@@ -15,15 +22,15 @@ export function AlertCenterPage() {
     <section>
       <div className="section-title">
         <div>
-          <h1>Central Alert Center</h1>
-          <p className="muted">Priority, SLA, status and escalation alerts routed to you.</p>
+          <h1>{t('alerts.title')}</h1>
+          <p className="muted">{t('alerts.subtitle')}</p>
         </div>
       </div>
 
       {isLoading && <LoadingSkeleton rows={5} />}
-      {isError && <ErrorState message={(error as Error)?.message ?? 'Failed to load alerts.'} />}
+      {isError && <ErrorState message={(error as Error)?.message ?? t('alerts.loadFailed')} />}
       {data && (data.length === 0
-        ? <EmptyState title="No alerts" message="You're all caught up." icon={BellRing} />
+        ? <EmptyState title={t('alerts.emptyTitle')} message={t('alerts.emptyMsg')} icon={BellRing} />
         : (
           <div className="stack">
             {SEVERITY_ORDER.map((sev) => {
@@ -31,9 +38,9 @@ export function AlertCenterPage() {
               if (group.length === 0) return null;
               return (
                 <div key={sev}>
-                  <h3>{SEVERITY_LABEL[sev]} ({group.length})</h3>
+                  <h3>{t('alerts.group', { label: t(SEVERITY_KEY[sev]), count: group.length })}</h3>
                   <div className="stack">
-                    {group.map((a) => <AlertCard key={a.id} alert={a} onAck={() => ack.mutate(a.id)} acking={ack.isPending} />)}
+                    {group.map((a) => <AlertCard key={a.id} alert={a} onAck={() => ack.mutate(a.id)} acking={ack.isPending} t={t} />)}
                   </div>
                 </div>
               );
@@ -44,7 +51,7 @@ export function AlertCenterPage() {
   );
 }
 
-function AlertCard({ alert, onAck, acking }: { alert: Alert; onAck: () => void; acking: boolean }) {
+function AlertCard({ alert, onAck, acking, t }: { alert: Alert; onAck: () => void; acking: boolean; t: TFunc }) {
   return (
     <Card hover>
       <div className="row between" style={{ alignItems: 'flex-start' }}>
@@ -53,12 +60,12 @@ function AlertCard({ alert, onAck, acking }: { alert: Alert; onAck: () => void; 
           <p style={{ margin: 'var(--space-2) 0 4px' }}>{alert.message}</p>
           <div className="row muted" style={{ fontSize: 'var(--fs-xs)' }}>
             <span>{new Date(alert.createdAt).toLocaleString()}</span>
-            <Link to={`/incidents/${alert.incidentId}`}>View incident</Link>
+            <Link to={`/incidents/${alert.incidentId}`}>{t('alerts.viewIncident')}</Link>
           </div>
         </div>
         {alert.acknowledgedAt
-          ? <span className="badge badge--within_target"><Check size={13} /> Acknowledged</span>
-          : <Button size="sm" variant="secondary" onClick={onAck} disabled={acking}>Acknowledge</Button>}
+          ? <span className="badge badge--within_target"><Check size={13} /> {t('alerts.acknowledged')}</span>
+          : <Button size="sm" variant="secondary" onClick={onAck} disabled={acking}>{t('alerts.acknowledge')}</Button>}
       </div>
     </Card>
   );

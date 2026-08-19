@@ -1,20 +1,22 @@
-import type { Incident } from '@incident/shared';
+import type { Incident, SupportGroup } from '@incident/shared';
 import { useNavigate } from 'react-router-dom';
+import { useT } from '../i18n/I18nContext';
 import { PriorityBadge, StatusBadge } from './ui';
 
 export function IncidentTable({ incidents }: { incidents: Incident[] }) {
   const navigate = useNavigate();
+  const t = useT();
   return (
     <div className="table-wrap">
       <table className="table">
         <thead>
           <tr>
-            <th>Ticket</th>
-            <th>Title</th>
-            <th>Priority</th>
-            <th>Status</th>
-            <th>Group</th>
-            <th>Created</th>
+            <th>{t('table.ticket')}</th>
+            <th>{t('table.title')}</th>
+            <th>{t('table.priority')}</th>
+            <th>{t('table.status')}</th>
+            <th>{t('table.group')}</th>
+            <th>{t('table.created')}</th>
           </tr>
         </thead>
         <tbody>
@@ -25,7 +27,7 @@ export function IncidentTable({ incidents }: { incidents: Incident[] }) {
               <td>{i.title}</td>
               <td><PriorityBadge priority={i.priority} /></td>
               <td><StatusBadge status={i.status} /></td>
-              <td className="muted">{i.supportGroup ?? '—'}</td>
+              <td className="muted">{i.supportGroup ? t(`group.${i.supportGroup as SupportGroup}`) : '—'}</td>
               <td className="muted">{new Date(i.createdAt).toLocaleString()}</td>
             </tr>
           ))}

@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router
 import { useAuth } from './auth/AuthContext';
 import { AppShell } from './components/AppShell';
 import { EmptyState } from './components/ui';
+import { useT } from './i18n/I18nContext';
 import { AlertCenterPage } from './pages/AlertCenterPage';
 import { ControlTowerPage } from './pages/ControlTowerPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -25,10 +26,16 @@ function RequireAuth() {
 
 function RequireRole({ roles, children }: { roles: Role[]; children: React.ReactNode }) {
   const { hasRole } = useAuth();
+  const t = useT();
   if (!hasRole(...roles)) {
-    return <EmptyState title="Access denied" message="You do not have permission to view this page." />;
+    return <EmptyState title={t('access.deniedTitle')} message={t('access.deniedMsg')} />;
   }
   return <>{children}</>;
+}
+
+function NotFound() {
+  const t = useT();
+  return <EmptyState title={t('notFound.title')} message={t('notFound.msg')} />;
 }
 
 function HomeRedirect() {
@@ -61,7 +68,7 @@ export const router = createBrowserRouter([
       { path: 'alerts', element: <AlertCenterPage /> },
       { path: 'dashboard', element: <RequireRole roles={['manager', 'management']}><DashboardPage /></RequireRole> },
       { path: 'sla-config', element: <RequireRole roles={['manager', 'service_desk']}><SlaConfigPage /></RequireRole> },
-      { path: '*', element: <EmptyState title="Not found" message="This page does not exist." /> },
+      { path: '*', element: <NotFound /> },
     ],
   },
 ]);

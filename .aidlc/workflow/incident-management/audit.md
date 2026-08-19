@@ -63,3 +63,35 @@
 - Intake: created ticket `INC-2026-001007` over live HTTP (verified).
 - Seed data: 6 synthetic users + 6 incidents across P1–P4/statuses (fixtures).
 - docker-compose.yml validated via `docker compose config` (syntax OK). Full container run + PostgreSQL round-trip pending a running Docker engine (unavailable this session).
+
+### [2026-08-17] change-request: Add-on Theme & Localization
+- Phase: implement (post-delivery change request)
+- Action: user requested Dark/Light theme toggle + TH/EN localization (enterprise best practice) after UX testing; confirmed both features + lightweight (zero-dep) approach, light default, browser-detected language w/ EN fallback, proposed dark palette approved
+- Spec refinement (under `Add-on` headings): requirements.md (R16 Theme, R17 Localization), design/components.md (Theme & Localization), tasks.md (Add-on Group A)
+- Artifacts: .kiro/specs/incident-management/requirements.md, design/components.md, tasks.md, .kiro/steering/design-system.md
+- Outcome: specs refined and approved; implementation follows
+
+### [2026-08-17] bugfix + env findings: live PostgreSQL verification attempt
+- Trigger: user asked to run `docker compose` and fix to reach the live pg round-trip goal.
+- Environment blockers (not code):
+  - Docker Desktop engine will not start — **WSL2 is not installed** (`wsl --status` → not installed). Docker's `desktop-linux` engine depends on WSL2; installing it needs admin + reboot, so it was not done unilaterally.
+  - Portable PostgreSQL fallback (EDB 17.6 binaries zip, 314MB) could not be downloaded — every method (Invoke-WebRequest, curl, BITS) truncated at 57–196MB, consistent with antivirus/egress interruption of large binaries.
+- **Bug found & fixed (would break the pg path on first `seed`):** `apps/api/src/migrations/001_init.sql` declared all id / `*_id` columns as `uuid`, but application IDs are opaque strings (`u-emma`, `i-1001`, `a-1`, `al-1`, …). Against real PostgreSQL, `npm run seed` would fail with `invalid input syntax for type uuid`. In-memory backend is untyped JS so all 57 tests passed, masking it. Fixed by changing those columns to `text` (runtime `randomUUID()` IDs remain valid text). FKs adjusted to match. `pg.ts` INSERT/UPDATE column lists + param counts statically cross-checked against the schema — consistent.
+- Verified after fix: full suite 57/57 green (shared 25, api 18, web 14). Live pg round-trip still pending an environment with WSL2/Docker or a local PostgreSQL.
+- To verify live (either path):
+  - Docker: `wsl --install` (admin + reboot) → `docker compose up -d --build` → open http://localhost:8080, check `GET /api/health`.
+  - Local PG: install/run PostgreSQL, create db `incident`, set `DATABASE_URL` + `DATA_BACKEND=pg` + `JWT_SECRET`, then `npm run migrate -w apps/api` && `npm run seed -w apps/api` && `npm run dev:api`.
+
+### [2026-08-17] LIVE-VERIFIED: PostgreSQL round-trip (portable PG, no Docker)
+- WSL2 install not possible on this domain machine (UAC elevation not granted). Pivoted to a portable PostgreSQL 17.6 (EDB binaries zip) run locally — no admin, no Docker. Earlier download truncations were the foreground tool timeout, not AV: re-ran the 314MB download as a background process → completed.
+- Steps executed: extract binaries → `initdb` (superuser `incident`, trust) → start `postgres -p 5432` → `createdb incident` → `npm run migrate -w apps/api` (10 tables created) → `npm run seed -w apps/api` (users 6, incidents 6, activities 5, alerts 3, audit 3) → API `DATA_BACKEND=pg` on :3005.
+- Live HTTP round-trip against pg: `/health` `{db:ok}`; JWT login (users from pg); `/incidents` RBAC list = 6; intake write → `INC-2026-001007` persisted, `ticket_seq` 1006→1007, `audit_events` 3→8.
+- Confirms the `uuid`→`text` migration fix end-to-end. tasks 3.11 / 3.12 pg-verification gap is now closed. Only remaining unverified item: a full `docker compose up` container run (needs WSL2/Docker on the host).
+
+### [2026-08-19] LIVE-VERIFIED: full Docker Compose stack + compose bugfix
+- WSL2 installed via elevated `wsl --install --no-distribution` (UAC approved) + reboot → VirtualMachinePlatform active → Docker engine 29.7.2 (Linux containers) now starts.
+- `docker compose up -d --build` built api + web images, pulled postgres:18-alpine.
+- **Bug found & fixed (only surfaces on a real container run):** postgres:18-alpine changed its data-dir convention — v18+ requires the volume mounted at `/var/lib/postgresql` (not `/var/lib/postgresql/data`); the old mount caused the postgres container to exit(1) on startup. Fixed in `docker-compose.yml`.
+- After fix: all 3 services Up (postgres healthy = PostgreSQL 18.6); api container ran migrate (001_init applied) → seed (complete) → start (backend=pg, listening).
+- Live round-trip against the containerized stack: web nginx :8080 → 200; api :3001 `/health` `{db:ok}`; login + RBAC list = 6; intake write → `INC-2026-001007` persisted to containerized Postgres.
+- Result: both fixes (schema `uuid`→`text` + compose volume path) are now proven by a real `docker compose` run. Deployment path (R15) fully verified.

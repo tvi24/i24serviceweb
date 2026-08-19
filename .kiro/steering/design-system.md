@@ -99,3 +99,48 @@ Motion respects `prefers-reduced-motion`. Tap targets ≥ 44px. Every interactiv
 - **Alert Center**: list of alert cards grouped by severity, acknowledge action.
 - **Dashboard**: KPI cards row + charts + no-data states.
 - **SLA Config**: form of editable targets/matrix/routing (manager only).
+
+## Add-on — Dark theme & Localization (R16, R17)
+
+Approved 2026-08-17. Light mode remains the default (framework HARD RULE #7). Dark is opt-in via a toggle and follows OS preference on first load when no stored choice exists.
+
+### Dark palette (`[data-theme="dark"]` in `tokens.css`)
+
+Color tokens only are overridden; layout/typography/radius/motion tokens are shared. All values chosen for WCAG 2.2 AA text/background contrast.
+
+| Token | Dark value |
+|---|---|
+| `--color-bg` | `#0f1420` |
+| `--color-surface` | `#171e2e` |
+| `--color-surface-2` | `#1f2838` |
+| `--color-border` | `#2c3648` |
+| `--color-text` | `#e7ecf3` |
+| `--color-text-muted` | `#9aa7bd` |
+| `--color-primary` | `#5b8def` |
+| `--color-primary-hover` | `#7aa4f2` |
+| `--color-primary-weak` | `#1a2740` |
+| `--color-focus` | `#5b8def` |
+| `--color-success` | `#3fae6f` |
+| `--color-success-weak` | `#132a20` |
+| `--color-warning` | `#d99e3a` |
+| `--color-warning-weak` | `#2e2413` |
+| `--color-danger` | `#e06b6b` |
+| `--color-danger-weak` | `#2e1717` |
+| `--color-info` | `#5aa2e0` |
+| `--color-info-weak` | `#132433` |
+| `--color-p1` | `#e06b6b` |
+| `--color-p2` | `#e8933f` |
+| `--color-p3` | `#d9a441` |
+| `--color-p4` | `#8a97ad` |
+| `--shadow-sm` | `0 1px 2px rgba(0,0,0,.4)` |
+| `--shadow-md` | `0 4px 12px rgba(0,0,0,.45)` |
+| `--shadow-lg` | `0 12px 28px rgba(0,0,0,.5)` |
+
+### Controls
+- **ThemeToggle** — Lucide `Sun`/`Moon`, in AppShell bar + Login. Keyboard operable, `:focus-visible` ring, `aria-label` reflects current state. Persist to `localStorage['im.theme']`.
+- **LanguageSwitch** — TH/EN segmented control, in AppShell bar + Login. Keyboard operable, `aria-label`. Persist to `localStorage['im.lang']`. No emoji flags (use text `TH`/`EN`).
+
+### Localization notes
+- Interface strings only; user-entered incident content preserved as entered.
+- Enum display labels (Status/Priority/SlaState/Role) localized via helper maps; stored values unchanged.
+- Missing key → English fallback, never a raw key.

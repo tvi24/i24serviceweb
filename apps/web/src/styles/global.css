@@ -20,6 +20,7 @@ body {
   background: var(--color-bg);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
 }
 
 h1, h2, h3, h4 {

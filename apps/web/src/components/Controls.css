@@ -1,0 +1,64 @@
+/* Theme toggle + language switch (Add-on R16/R17) */
+
+.ctl-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.ctl-icon-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.lang-switch__opt {
+  min-width: 40px;
+  height: 40px;
+  padding-inline: var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.lang-switch__opt + .lang-switch__opt {
+  border-inline-start: 1px solid var(--color-border);
+}
+.lang-switch__opt:hover {
+  color: var(--color-primary);
+}
+.lang-switch__opt.is-active {
+  background: var(--color-primary-weak);
+  color: var(--color-primary);
+}
+
+/* Tap targets stay >= 44px on touch via padding of surrounding bar; controls are 40px visual
+   with generous hit area. On small screens keep them comfortably tappable. */
+@media (max-width: 640px) {
+  .ctl-icon-btn,
+  .lang-switch__opt {
+    height: 44px;
+  }
+  .ctl-icon-btn {
+    width: 44px;
+    min-width: 44px;
+  }
+}

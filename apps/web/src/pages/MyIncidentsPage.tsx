@@ -1,25 +1,27 @@
 import { Link } from 'react-router-dom';
 import { IncidentTable } from '../components/IncidentTable';
 import { Button, EmptyState, ErrorState, LoadingSkeleton } from '../components/ui';
+import { useT } from '../i18n/I18nContext';
 import { useIncidents } from '../hooks/useIncidents';
 
 export function MyIncidentsPage() {
+  const t = useT();
   const { data, isLoading, isError, error } = useIncidents({ mine: true });
 
   return (
     <section>
       <div className="section-title">
         <div>
-          <h1>My Incidents</h1>
-          <p className="muted">Incidents you have reported. Click a row to view details, confirm, or reopen.</p>
+          <h1>{t('my.title')}</h1>
+          <p className="muted">{t('my.subtitle')}</p>
         </div>
-        <Link to="/intake"><Button>Report Incident</Button></Link>
+        <Link to="/intake"><Button>{t('nav.reportIncident')}</Button></Link>
       </div>
 
       {isLoading && <LoadingSkeleton rows={5} />}
-      {isError && <ErrorState message={(error as Error)?.message ?? 'Failed to load.'} />}
+      {isError && <ErrorState message={(error as Error)?.message ?? t('common.loadFailed')} />}
       {data && (data.length === 0
-        ? <EmptyState title="No incidents yet" message="Report your first incident to get started." />
+        ? <EmptyState title={t('my.emptyTitle')} message={t('my.emptyMsg')} />
         : <IncidentTable incidents={data} />)}
     </section>
   );

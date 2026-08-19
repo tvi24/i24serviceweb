@@ -67,3 +67,50 @@
   --dur-base: 200ms;
   --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
 }
+
+/* Dark theme (Add-on R16). Color tokens only; layout/typography/motion shared.
+   Applied via <html data-theme="dark">. Values target WCAG 2.2 AA contrast. */
+:root[data-theme='dark'] {
+  /* Surfaces / text */
+  --color-bg: #0f1420;
+  --color-surface: #171e2e;
+  --color-surface-2: #1f2838;
+  --color-border: #2c3648;
+  --color-text: #e7ecf3;
+  --color-text-muted: #9aa7bd;
+
+  /* Brand */
+  --color-primary: #5b8def;
+  --color-primary-hover: #7aa4f2;
+  --color-primary-weak: #1a2740;
+  --color-focus: #5b8def;
+
+  /* Semantic */
+  --color-success: #3fae6f;
+  --color-success-weak: #132a20;
+  --color-warning: #d99e3a;
+  --color-warning-weak: #2e2413;
+  --color-danger: #e06b6b;
+  --color-danger-weak: #2e1717;
+  --color-info: #5aa2e0;
+  --color-info-weak: #132433;
+
+  /* Priority */
+  --color-p1: #e06b6b;
+  --color-p2: #e8933f;
+  --color-p3: #d9a441;
+  --color-p4: #8a97ad;
+
+  /* Shadow — deeper on dark surfaces */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* Smooth theme transition on color surfaces (respects reduced-motion via global.css) */
+html {
+  color-scheme: light;
+}
+html[data-theme='dark'] {
+  color-scheme: dark;
+}

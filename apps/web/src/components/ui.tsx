@@ -8,7 +8,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { STATUS_LABELS, type IncidentStatus, type Priority, type SlaState } from '@incident/shared';
+import { type IncidentStatus, type Priority, type SlaState } from '@incident/shared';
+import { useT } from '../i18n/I18nContext';
 import './ui.css';
 
 type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -39,7 +40,8 @@ const PRIORITY_ICON: Record<Priority, LucideIcon> = {
 };
 
 export function PriorityBadge({ priority }: { priority?: Priority | null }) {
-  if (!priority) return <span className="badge badge--status">Unset</span>;
+  const t = useT();
+  if (!priority) return <span className="badge badge--status">{t('badge.unset')}</span>;
   const Icon = PRIORITY_ICON[priority];
   return (
     <span className={`badge badge--${priority.toLowerCase()}`}>
@@ -54,25 +56,22 @@ const SLA_ICON: Record<SlaState, LucideIcon> = {
   at_risk: Clock,
   breached: XCircle,
 };
-const SLA_LABEL: Record<SlaState, string> = {
-  within_target: 'On track',
-  at_risk: 'At risk',
-  breached: 'Breached',
-};
 
 export function SlaBadge({ state }: { state?: SlaState | null }) {
-  if (!state) return <span className="badge badge--status">No SLA</span>;
+  const t = useT();
+  if (!state) return <span className="badge badge--status">{t('badge.noSla')}</span>;
   const Icon = SLA_ICON[state];
   return (
     <span className={`badge badge--${state}`}>
       <Icon size={13} aria-hidden="true" />
-      {SLA_LABEL[state]}
+      {t(`sla.${state}`)}
     </span>
   );
 }
 
 export function StatusBadge({ status }: { status: IncidentStatus }) {
-  return <span className="badge badge--status">{STATUS_LABELS[status]}</span>;
+  const t = useT();
+  return <span className="badge badge--status">{t(`status.${status}`)}</span>;
 }
 
 export function EmptyState({ title, message, icon: Icon = Inbox }: { title: string; message?: string; icon?: LucideIcon }) {
@@ -86,10 +85,11 @@ export function EmptyState({ title, message, icon: Icon = Inbox }: { title: stri
 }
 
 export function ErrorState({ message }: { message: string }) {
+  const t = useT();
   return (
     <div className="state-block state-block--error" role="alert">
       <XCircle size={32} aria-hidden="true" />
-      <strong>Something went wrong</strong>
+      <strong>{t('error.title')}</strong>
       <span>{message}</span>
     </div>
   );

@@ -54,3 +54,21 @@ Each service is a pure-ish module operating over repository interfaces; no servi
 - **types** — Incident, Activity, SlaRecord, Alert, Csat, User, Role, AuditEvent, SlaConfig, enums (Status, Priority, SlaState).
 - **constants** — role names, status transition map, default config, priority matrix.
 - **fixtures** — synthetic seed data used by both memory repo and frontend mocks (single source, exported as JSON).
+
+## Add-on — Theme & Localization (R16, R17)
+
+Approved 2026-08-17 after UX testing. Zero new runtime dependencies (custom lightweight implementations).
+
+### Theme (R16)
+- **tokens.css** — adds a `[data-theme="dark"]` block that overrides the color tokens only (surfaces, text, brand, semantic, priority, shadows). Light stays under `:root`. Layout/typography/motion tokens are shared. Components remain bound to `var(--color-*)`; no component changes required for color.
+- **theme/ThemeContext** (`apps/web/src/theme/`) — `ThemeProvider` + `useTheme()`. Resolves initial theme: `localStorage['im.theme']` → `matchMedia('(prefers-color-scheme: dark)')` → `light`. Applies `document.documentElement.dataset.theme`. Persists on change.
+- **ThemeToggle** component — Lucide `Sun`/`Moon`, keyboard operable, `aria-label` reflects current state. Placed in `AppShell` top bar and on `LoginPage`.
+
+### Localization (R17)
+- **i18n/I18nContext** (`apps/web/src/i18n/`) — `I18nProvider` + `useT()` returning `t(key, vars?)`. Typed dictionaries `en.ts` and `th.ts` (same key set). Initial language: `localStorage['im.lang']` → `navigator.language` (th→`th`, else `en`). Persists on change. Missing key → English fallback (never raw key).
+- **Enum label helpers** — localized display maps for Status, Priority, SlaState, Role; stored enum values unchanged.
+- **LanguageSwitch** component — TH/EN segmented control, keyboard operable, `aria-label`. Placed in `AppShell` top bar and on `LoginPage`.
+- **Coverage** — all `pages/*` and `components/*` interface strings routed through `t()`. User-entered data (titles, descriptions, notes) not translated.
+
+### Providers wiring
+- `main.tsx` wraps the app: `ThemeProvider` + `I18nProvider` around the existing `QueryClientProvider` / router.

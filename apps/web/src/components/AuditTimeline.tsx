@@ -1,21 +1,20 @@
-import type { Activity, AuditEvent } from '@incident/shared';
+import type { Activity, AuditEvent, IncidentStatus } from '@incident/shared';
+import { useT } from '../i18n/I18nContext';
+import type { TranslationKey } from '../i18n/en';
 import { EmptyState } from './ui';
 import './AuditTimeline.css';
 
-type TimelineItem =
-  | { kind: 'activity'; at: string; label: string; note?: string | null }
-  | { kind: 'audit'; at: string; label: string; note?: string | null };
-
-const ACTIVITY_LABEL: Record<string, string> = {
-  work_note: 'Work note',
-  status_change: 'Status changed',
-  assignment: 'Assignment',
-  resolution: 'Resolved',
-  reopen: 'Reopened',
+const ACTIVITY_LABEL_KEY: Record<string, TranslationKey> = {
+  work_note: 'activity.work_note',
+  status_change: 'activity.status_change',
+  assignment: 'activity.assignment',
+  resolution: 'activity.resolution',
+  reopen: 'activity.reopen',
 };
 
 export function ActivityTimeline({ activities }: { activities: Activity[] }) {
-  if (activities.length === 0) return <EmptyState title="No activity yet" />;
+  const t = useT();
+  if (activities.length === 0) return <EmptyState title={t('activity.emptyTitle')} />;
   return (
     <ol className="timeline">
       {activities.map((a) => (
@@ -23,10 +22,14 @@ export function ActivityTimeline({ activities }: { activities: Activity[] }) {
           <span className="timeline__dot" aria-hidden="true" />
           <div>
             <div className="timeline__head">
-              <strong>{ACTIVITY_LABEL[a.type] ?? a.type}</strong>
+              <strong>{ACTIVITY_LABEL_KEY[a.type] ? t(ACTIVITY_LABEL_KEY[a.type]) : a.type}</strong>
               <span className="muted">{new Date(a.createdAt).toLocaleString()}</span>
             </div>
-            {a.type === 'status_change' && <div className="muted">{a.fromStatus} → {a.toStatus}</div>}
+            {a.type === 'status_change' && (
+              <div className="muted">
+                {t(`status.${a.fromStatus as IncidentStatus}`)} → {t(`status.${a.toStatus as IncidentStatus}`)}
+              </div>
+            )}
             {a.note && <div>{a.note}</div>}
           </div>
         </li>
@@ -36,7 +39,8 @@ export function ActivityTimeline({ activities }: { activities: Activity[] }) {
 }
 
 export function AuditTimeline({ events }: { events: AuditEvent[] }) {
-  if (!events || events.length === 0) return <EmptyState title="No audit records" />;
+  const t = useT();
+  if (!events || events.length === 0) return <EmptyState title={t('audit.emptyTitle')} />;
   return (
     <ol className="timeline">
       {events.map((e) => (
@@ -47,7 +51,7 @@ export function AuditTimeline({ events }: { events: AuditEvent[] }) {
               <strong>{e.action}</strong>
               <span className="muted">{new Date(e.createdAt).toLocaleString()}</span>
             </div>
-            <div className="muted">by {e.actorLabel}</div>
+            <div className="muted">{t('audit.by', { actor: e.actorLabel })}</div>
           </div>
         </li>
       ))}

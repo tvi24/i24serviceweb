@@ -15,6 +15,7 @@ import { ApiError } from '../api/apiClient';
 import { ActivityTimeline, AuditTimeline } from '../components/AuditTimeline';
 import { CsatForm } from '../components/CsatForm';
 import { Button, Card, ErrorState, LoadingSkeleton, PriorityBadge, SlaBadge, StatusBadge } from '../components/ui';
+import { useT } from '../i18n/I18nContext';
 import { useAuth } from '../auth/AuthContext';
 import {
   useAddNote,
@@ -37,12 +38,13 @@ const IU: ImpactUrgency[] = ['high', 'medium', 'low'];
 
 export function IncidentWorkspacePage() {
   const { id } = useParams<{ id: string }>();
+  const t = useT();
   const { user, hasRole } = useAuth();
   const { data: inc, isLoading, isError, error } = useIncident(id);
   const audit = useAudit(id);
 
   if (isLoading) return <LoadingSkeleton rows={8} />;
-  if (isError || !inc) return <ErrorState message={(error as Error)?.message ?? 'Incident not found.'} />;
+  if (isError || !inc) return <ErrorState message={(error as Error)?.message ?? t('ws.notFound')} />;
 
   const isReporter = inc.reporterId === user?.id;
   const isSupport = hasRole('service_desk', 'application_support', 'infrastructure_support', 'manager');
@@ -65,24 +67,24 @@ export function IncidentWorkspacePage() {
       <div className="workspace">
         <div className="stack">
           <Card>
-            <h3>Description</h3>
+            <h3>{t('ws.description')}</h3>
             <p>{inc.description}</p>
             <div className="row muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 'var(--space-3)' }}>
-              <span>Reporter: {inc.reporter?.displayName ?? '—'}</span>
-              <span>Owner: {inc.owner?.displayName ?? 'Unassigned'}</span>
-              <span>Classification: {inc.classification ?? inc.classificationSuggested ?? '—'}</span>
+              <span>{t('ws.reporter', { name: inc.reporter?.displayName ?? '—' })}</span>
+              <span>{t('ws.owner', { name: inc.owner?.displayName ?? t('ws.unassigned') })}</span>
+              <span>{t('ws.classification', { value: inc.classification ?? inc.classificationSuggested ?? '—' })}</span>
             </div>
           </Card>
 
           <Card>
-            <h3>Activity</h3>
+            <h3>{t('ws.activity')}</h3>
             <ActivityTimeline activities={inc.activities} />
             {isSupport && inc.status !== 'closed' && <WorkNoteInput id={inc.id} />}
           </Card>
 
           {canViewAudit && (
             <Card>
-              <h3>Audit history</h3>
+              <h3>{t('ws.auditHistory')}</h3>
               <AuditTimeline events={(audit.data as any) ?? []} />
             </Card>
           )}
@@ -101,14 +103,15 @@ export function IncidentWorkspacePage() {
 }
 
 function WorkNoteInput({ id }: { id: string }) {
+  const t = useT();
   const [note, setNote] = useState('');
   const addNote = useAddNote(id);
   return (
     <div className="stack" style={{ marginTop: 'var(--space-4)' }}>
-      <textarea className="textarea" placeholder="Add a work note…" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Work note" />
+      <textarea className="textarea" placeholder={t('ws.addNotePlaceholder')} value={note} onChange={(e) => setNote(e.target.value)} aria-label={t('ws.workNoteAria')} />
       <div>
         <Button size="sm" disabled={addNote.isPending || !note.trim()} onClick={() => addNote.mutate(note, { onSuccess: () => setNote('') })}>
-          {addNote.isPending ? 'Adding…' : 'Add note'}
+          {addNote.isPending ? t('ws.adding') : t('ws.addNote')}
         </Button>
       </div>
     </div>
@@ -116,6 +119,7 @@ function WorkNoteInput({ id }: { id: string }) {
 }
 
 function TriagePanel({ inc }: { inc: IncidentDetail }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const suggestions = useSuggestions(inc.id, open);
   const triage = useTriage(inc.id);
@@ -126,48 +130,48 @@ function TriagePanel({ inc }: { inc: IncidentDetail }) {
 
   return (
     <Card>
-      <h3>Triage</h3>
+      <h3>{t('triage.title')}</h3>
       <div className="field">
-        <label>Classification</label>
+        <label>{t('triage.classification')}</label>
         <select className="select" value={classification} onChange={(e) => setClassification(e.target.value)}>
-          {CLASSIFICATIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+          {CLASSIFICATIONS.map((c) => <option key={c} value={c}>{t(`class.${c}`)}</option>)}
         </select>
       </div>
       <div className="row">
         <div className="field" style={{ flex: 1 }}>
-          <label>Impact</label>
+          <label>{t('triage.impact')}</label>
           <select className="select" value={impact} onChange={(e) => setImpact(e.target.value as ImpactUrgency)}>
-            {IU.map((v) => <option key={v} value={v}>{v}</option>)}
+            {IU.map((v) => <option key={v} value={v}>{t(`iu.${v}`)}</option>)}
           </select>
         </div>
         <div className="field" style={{ flex: 1 }}>
-          <label>Urgency</label>
+          <label>{t('triage.urgency')}</label>
           <select className="select" value={urgency} onChange={(e) => setUrgency(e.target.value as ImpactUrgency)}>
-            {IU.map((v) => <option key={v} value={v}>{v}</option>)}
+            {IU.map((v) => <option key={v} value={v}>{t(`iu.${v}`)}</option>)}
           </select>
         </div>
       </div>
       <div className="field">
-        <label>Priority</label>
+        <label>{t('triage.priority')}</label>
         <select className="select" value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
           {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
 
-      {!open && <Button variant="ghost" size="sm" onClick={() => setOpen(true)}><Sparkles size={14} /> Get AI recommendation</Button>}
+      {!open && <Button variant="ghost" size="sm" onClick={() => setOpen(true)}><Sparkles size={14} /> {t('triage.getAi')}</Button>}
       {open && suggestions.data && (
         <div className="ai-suggestion">
           <strong>{suggestions.data.label}</strong>
-          <div className="muted">Suggested: {suggestions.data.classification} / {suggestions.data.priority}</div>
+          <div className="muted">{t('triage.suggested', { classification: suggestions.data.classification, priority: suggestions.data.priority })}</div>
           <Button variant="ghost" size="sm" onClick={() => { setClassification(suggestions.data!.classification); setPriority(suggestions.data!.priority); }}>
-            Apply suggestion
+            {t('triage.apply')}
           </Button>
         </div>
       )}
 
       <div style={{ marginTop: 'var(--space-3)' }}>
         <Button disabled={triage.isPending} onClick={() => triage.mutate({ classification, impact, urgency, priority })}>
-          {triage.isPending ? 'Saving…' : 'Save triage'}
+          {triage.isPending ? t('triage.saving') : t('triage.save')}
         </Button>
       </div>
     </Card>
@@ -175,6 +179,7 @@ function TriagePanel({ inc }: { inc: IncidentDetail }) {
 }
 
 function AssignPanel({ inc }: { inc: IncidentDetail }) {
+  const t = useT();
   const assign = useAssign(inc.id);
   const users = useUsers();
   const [group, setGroup] = useState<SupportGroup | ''>(inc.supportGroup ?? '');
@@ -188,32 +193,32 @@ function AssignPanel({ inc }: { inc: IncidentDetail }) {
     assign.mutate(
       auto ? {} : { supportGroup: (group || undefined) as SupportGroup | undefined, ownerId: ownerId || null },
       {
-        onSuccess: (d: any) => setMsg(d.status === 'fallback' ? 'No matching group — routed to fallback queue.' : 'Assigned.'),
-        onError: (e) => setMsg(e instanceof ApiError ? e.message : 'Failed.'),
+        onSuccess: (d: any) => setMsg(d.status === 'fallback' ? t('assign.fallbackMsg') : t('assign.assignedMsg')),
+        onError: (e) => setMsg(e instanceof ApiError ? e.message : t('common.failed')),
       }
     );
   }
 
   return (
     <Card>
-      <h3>Assignment</h3>
+      <h3>{t('assign.title')}</h3>
       <div className="field">
-        <label>Support group</label>
+        <label>{t('assign.group')}</label>
         <select className="select" value={group} onChange={(e) => setGroup(e.target.value as SupportGroup)}>
-          <option value="">Auto (by rules)</option>
-          {SUPPORT_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+          <option value="">{t('assign.autoRules')}</option>
+          {SUPPORT_GROUPS.map((g) => <option key={g} value={g}>{t(`group.${g}`)}</option>)}
         </select>
       </div>
       <div className="field">
-        <label>Owner</label>
+        <label>{t('assign.owner')}</label>
         <select className="select" value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
-          <option value="">Unassigned</option>
+          <option value="">{t('assign.unassigned')}</option>
           {owners.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}
         </select>
       </div>
       <div className="row">
-        <Button size="sm" disabled={assign.isPending} onClick={() => doAssign(false)}>Assign</Button>
-        <Button size="sm" variant="secondary" disabled={assign.isPending} onClick={() => doAssign(true)}>Auto-route</Button>
+        <Button size="sm" disabled={assign.isPending} onClick={() => doAssign(false)}>{t('assign.assign')}</Button>
+        <Button size="sm" variant="secondary" disabled={assign.isPending} onClick={() => doAssign(true)}>{t('assign.autoRoute')}</Button>
       </div>
       {msg && <p className="muted" style={{ marginTop: 'var(--space-2)' }}>{msg}</p>}
     </Card>
@@ -221,6 +226,7 @@ function AssignPanel({ inc }: { inc: IncidentDetail }) {
 }
 
 function StatusPanel({ inc }: { inc: IncidentDetail }) {
+  const t = useT();
   const change = useChangeStatus(inc.id);
   const [msg, setMsg] = useState<string | null>(null);
   const next: Record<string, string[]> = {
@@ -233,12 +239,12 @@ function StatusPanel({ inc }: { inc: IncidentDetail }) {
   if (options.length === 0) return null;
   return (
     <Card>
-      <h3>Status</h3>
+      <h3>{t('status.title')}</h3>
       <div className="row">
         {options.map((s) => (
           <Button key={s} size="sm" variant="secondary" disabled={change.isPending}
-            onClick={() => change.mutate(s as any, { onError: (e) => setMsg(e instanceof ApiError ? e.message : 'Failed.') })}>
-            Move to {s}
+            onClick={() => change.mutate(s as any, { onError: (e) => setMsg(e instanceof ApiError ? e.message : t('common.failed')) })}>
+            {t('status.moveTo', { status: t(`status.${s as 'in_progress'}`) })}
           </Button>
         ))}
       </div>
@@ -248,6 +254,7 @@ function StatusPanel({ inc }: { inc: IncidentDetail }) {
 }
 
 function ResolvePanel({ inc }: { inc: IncidentDetail }) {
+  const t = useT();
   const resolve = useResolve(inc.id);
   const close = useClose(inc.id);
   const [code, setCode] = useState('');
@@ -258,38 +265,39 @@ function ResolvePanel({ inc }: { inc: IncidentDetail }) {
   if (inc.status === 'resolved') {
     return (
       <Card>
-        <h3>Resolved</h3>
-        <p className="muted">Awaiting reporter confirmation. Code: {inc.resolutionCode}</p>
-        <Button size="sm" variant="secondary" disabled={close.isPending} onClick={() => close.mutate()}>Close now</Button>
+        <h3>{t('resolve.resolvedTitle')}</h3>
+        <p className="muted">{t('resolve.awaiting', { code: inc.resolutionCode ? t(`rescode.${inc.resolutionCode as 'fixed'}`) : '—' })}</p>
+        <Button size="sm" variant="secondary" disabled={close.isPending} onClick={() => close.mutate()}>{t('resolve.closeNow')}</Button>
       </Card>
     );
   }
   return (
     <Card>
-      <h3>Resolve</h3>
+      <h3>{t('resolve.title')}</h3>
       <div className="field">
-        <label>Resolution code</label>
+        <label>{t('resolve.code')}</label>
         <select className="select" value={code} onChange={(e) => setCode(e.target.value)} aria-invalid={!!fields.resolutionCode}>
-          <option value="">Select…</option>
-          {RESOLUTION_CODES.map((c) => <option key={c} value={c}>{c}</option>)}
+          <option value="">{t('resolve.selectCode')}</option>
+          {RESOLUTION_CODES.map((c) => <option key={c} value={c}>{t(`rescode.${c}`)}</option>)}
         </select>
         {fields.resolutionCode && <span className="field__error">{fields.resolutionCode}</span>}
       </div>
       <div className="field">
-        <label>Resolution note</label>
+        <label>{t('resolve.note')}</label>
         <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} aria-invalid={!!fields.resolutionNote} />
         {fields.resolutionNote && <span className="field__error">{fields.resolutionNote}</span>}
       </div>
       <Button disabled={resolve.isPending} onClick={() =>
         resolve.mutate({ resolutionCode: code, resolutionNote: note }, { onError: (e) => { if (e instanceof ApiError && e.fields) setFields(e.fields); } })
       }>
-        {resolve.isPending ? 'Resolving…' : 'Mark resolved'}
+        {resolve.isPending ? t('resolve.resolving') : t('resolve.markResolved')}
       </Button>
     </Card>
   );
 }
 
 function ReporterPanel({ inc }: { inc: IncidentDetail }) {
+  const t = useT();
   const confirm = useConfirm(inc.id);
   const csat = useSubmitCsat(inc.id);
   const reopen = useReopen(inc.id);
@@ -300,21 +308,21 @@ function ReporterPanel({ inc }: { inc: IncidentDetail }) {
     return (
       <>
         <Card>
-          <h3>Confirm resolution</h3>
-          <p className="muted">Was your issue resolved?</p>
+          <h3>{t('reporter.confirmTitle')}</h3>
+          <p className="muted">{t('reporter.confirmBody')}</p>
           <div className="row">
-            <Button disabled={confirm.isPending} onClick={() => confirm.mutate()}>Yes, confirm & close</Button>
+            <Button disabled={confirm.isPending} onClick={() => confirm.mutate()}>{t('reporter.confirmBtn')}</Button>
           </div>
         </Card>
         <Card>
-          <h3>Reopen</h3>
+          <h3>{t('reporter.reopenTitle')}</h3>
           <div className="field">
-            <textarea className="textarea" placeholder="Reason for reopening…" value={reason} onChange={(e) => setReason(e.target.value)} />
+            <textarea className="textarea" placeholder={t('reporter.reopenPlaceholder')} value={reason} onChange={(e) => setReason(e.target.value)} />
             {reasonErr && <span className="field__error">{reasonErr}</span>}
           </div>
           <Button variant="secondary" disabled={reopen.isPending} onClick={() =>
-            reopen.mutate(reason, { onError: (e) => setReasonErr(e instanceof ApiError ? e.message : 'Failed.') })
-          }>Reopen incident</Button>
+            reopen.mutate(reason, { onError: (e) => setReasonErr(e instanceof ApiError ? e.message : t('common.failed')) })
+          }>{t('reporter.reopenBtn')}</Button>
         </Card>
       </>
     );
@@ -322,15 +330,15 @@ function ReporterPanel({ inc }: { inc: IncidentDetail }) {
 
   if (inc.status === 'closed') {
     if (inc.csat?.submittedAt) {
-      return <Card><h3>Thank you</h3><p className="muted">You rated this {inc.csat.rating}/5.</p></Card>;
+      return <Card><h3>{t('reporter.thankTitle')}</h3><p className="muted">{t('reporter.thankBody', { rating: inc.csat.rating ?? 0 })}</p></Card>;
     }
     return (
       <Card>
-        <h3>Rate your experience</h3>
+        <h3>{t('reporter.rateTitle')}</h3>
         <CsatForm busy={csat.isPending} onSubmit={(rating, comment) => csat.mutate({ rating, comment })} />
       </Card>
     );
   }
 
-  return <Card><h3>Status</h3><p className="muted">Your incident is being handled by the support team.</p></Card>;
+  return <Card><h3>{t('reporter.statusTitle')}</h3><p className="muted">{t('reporter.statusBody')}</p></Card>;
 }

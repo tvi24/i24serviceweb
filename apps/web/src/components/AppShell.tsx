@@ -4,26 +4,30 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useAlerts } from '../hooks/useIncidents';
+import { useT } from '../i18n/I18nContext';
+import type { TranslationKey } from '../i18n/en';
+import { LanguageSwitch, ThemeToggle } from './Controls';
 import './AppShell.css';
 
 interface NavItem {
   to: string;
-  label: string;
+  labelKey: TranslationKey;
   roles: Role[];
 }
 
 const NAV: NavItem[] = [
-  { to: '/intake', label: 'Report Incident', roles: ['business_user'] },
-  { to: '/my-incidents', label: 'My Incidents', roles: ['business_user'] },
-  { to: '/control-tower', label: 'Control Tower', roles: ['service_desk', 'application_support', 'infrastructure_support', 'manager', 'management'] },
-  { to: '/dashboard', label: 'Dashboard', roles: ['manager', 'management'] },
-  { to: '/sla-config', label: 'SLA Config', roles: ['manager', 'service_desk'] },
+  { to: '/intake', labelKey: 'nav.reportIncident', roles: ['business_user'] },
+  { to: '/my-incidents', labelKey: 'nav.myIncidents', roles: ['business_user'] },
+  { to: '/control-tower', labelKey: 'nav.controlTower', roles: ['service_desk', 'application_support', 'infrastructure_support', 'manager', 'management'] },
+  { to: '/dashboard', labelKey: 'nav.dashboard', roles: ['manager', 'management'] },
+  { to: '/sla-config', labelKey: 'nav.slaConfig', roles: ['manager', 'service_desk'] },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const alerts = useAlerts();
+  const t = useT();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const unacked = (alerts.data ?? []).filter((a) => !a.acknowledgedAt).length;
@@ -39,32 +43,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="app-shell__bar">
         <div className="container app-shell__bar-inner">
           <div className="row" style={{ gap: 'var(--space-3)' }}>
-            <button className="app-shell__menu-btn" aria-label="Toggle navigation" onClick={() => setDrawerOpen((o) => !o)}>
+            <button className="app-shell__menu-btn" aria-label={t('shell.toggleNav')} onClick={() => setDrawerOpen((o) => !o)}>
               {drawerOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
             <NavLink className="app-shell__brand" to="/">
               <ShieldCheck size={24} aria-hidden="true" />
-              <span>Incident Management</span>
+              <span>{t('brand.name')}</span>
             </NavLink>
           </div>
 
           <nav className="app-shell__nav" aria-label="Primary">
             {items.map((n) => (
               <NavLink key={n.to} to={n.to} className={({ isActive }) => `app-shell__link${isActive ? ' is-active' : ''}`}>
-                {n.label}
+                {t(n.labelKey)}
               </NavLink>
             ))}
           </nav>
 
           <div className="row" style={{ gap: 'var(--space-3)' }}>
-            <NavLink to="/alerts" className="app-shell__bell" aria-label={`Alert center, ${unacked} unread`}>
+            <LanguageSwitch />
+            <ThemeToggle />
+            <NavLink to="/alerts" className="app-shell__bell" aria-label={t('shell.alertCenter', { count: unacked })}>
               <Bell size={20} aria-hidden="true" />
               {unacked > 0 && <span className="app-shell__badge">{unacked}</span>}
             </NavLink>
             <div className="app-shell__user">
               <span className="app-shell__user-name">{user?.displayName}</span>
             </div>
-            <button className="app-shell__icon-btn" onClick={handleLogout} aria-label="Sign out">
+            <button className="app-shell__icon-btn" onClick={handleLogout} aria-label={t('shell.signOut')}>
               <LogOut size={18} aria-hidden="true" />
             </button>
           </div>
@@ -74,7 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <nav className="app-shell__drawer" aria-label="Mobile navigation">
             {items.map((n) => (
               <NavLink key={n.to} to={n.to} onClick={() => setDrawerOpen(false)} className={({ isActive }) => `app-shell__drawer-link${isActive ? ' is-active' : ''}`}>
-                {n.label}
+                {t(n.labelKey)}
               </NavLink>
             ))}
           </nav>

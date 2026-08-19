@@ -1,10 +1,19 @@
 .login {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--space-5);
   background: radial-gradient(1200px 600px at 50% -10%, var(--color-primary-weak), var(--color-bg));
+}
+.login__topbar {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
 }
 .login__card { width: 100%; max-width: 420px; }
 .login__head { text-align: center; margin-bottom: var(--space-5); color: var(--color-primary); }
