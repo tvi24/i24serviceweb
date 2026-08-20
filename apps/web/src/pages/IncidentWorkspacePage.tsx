@@ -2,16 +2,19 @@ import {
   CLASSIFICATIONS,
   PRIORITIES,
   RESOLUTION_CODES,
+  slaInstanceState,
   SUPPORT_GROUPS,
   type ImpactUrgency,
   type IncidentDetail,
   type Priority,
+  type SlaRecord,
   type SupportGroup,
 } from '@incident/shared';
-import { Sparkles } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Mail, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ApiError } from '../api/apiClient';
+import { ApiError, api } from '../api/apiClient';
 import { ActivityTimeline, AuditTimeline } from '../components/AuditTimeline';
 import { CsatForm } from '../components/CsatForm';
 import { Button, Card, ErrorState, LoadingSkeleton, PriorityBadge, SlaBadge, StatusBadge } from '../components/ui';
@@ -52,7 +55,7 @@ export function IncidentWorkspacePage() {
 
   return (
     <section>
-      <div className="section-title">
+      <div className="section-title ws-header">
         <div>
           <div className="row"><code>{inc.ticketId}</code></div>
           <h1 style={{ marginBottom: 4 }}>{inc.title}</h1>
@@ -69,10 +72,13 @@ export function IncidentWorkspacePage() {
           <Card>
             <h3>{t('ws.description')}</h3>
             <p>{inc.description}</p>
-            <div className="row muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 'var(--space-3)' }}>
+            <div className="row muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 'var(--space-3)', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
               <span>{t('ws.reporter', { name: inc.reporter?.displayName ?? '—' })}</span>
               <span>{t('ws.owner', { name: inc.owner?.displayName ?? t('ws.unassigned') })}</span>
               <span>{t('ws.classification', { value: inc.classification ?? inc.classificationSuggested ?? '—' })}</span>
+              <span>{t('ws.channel', { value: t(`channel.${inc.channel}`) })}</span>
+              <span>{t('ws.category', { value: inc.category ?? '—' })}</span>
+              <span>{t('ws.requesterBu', { value: inc.requesterBuId ?? '—' })}</span>
             </div>
           </Card>
 
@@ -81,6 +87,8 @@ export function IncidentWorkspacePage() {
             <ActivityTimeline activities={inc.activities} />
             {isSupport && inc.status !== 'closed' && <WorkNoteInput id={inc.id} />}
           </Card>
+
+          <EmailPanel incidentId={inc.id} isSupport={isSupport} />
 
           {canViewAudit && (
             <Card>
@@ -91,6 +99,7 @@ export function IncidentWorkspacePage() {
         </div>
 
         <div className="stack">
+          <SlaPanel inc={inc} />
           {isSupport && <TriagePanel inc={inc} />}
           {isSupport && <AssignPanel inc={inc} />}
           {isSupport && <StatusPanel inc={inc} />}
@@ -99,6 +108,113 @@ export function IncidentWorkspacePage() {
         </div>
       </div>
     </section>
+  );
+}
+
+function formatDuration(ms: number): string {
+  const abs = Math.abs(ms);
+  const mins = Math.floor(abs / 60000);
+  const d = Math.floor(mins / 1440);
+  const h = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function SlaClockRow({ label, targetAt, metAt }: { label: string; targetAt: string; metAt?: string | null }) {
+  const t = useT();
+  const now = Date.now();
+  const target = new Date(targetAt).getTime();
+  let text: string;
+  let cls = 'within_target';
+  if (metAt) { text = t('ws.slaMet'); cls = 'within_target'; }
+  else if (now >= target) { text = t('ws.slaOverdue', { time: formatDuration(now - target) }); cls = 'breached'; }
+  else { text = t('ws.slaRemaining', { time: formatDuration(target - now) }); cls = 'within_target'; }
+  return (
+    <div className="row" style={{ justifyContent: 'space-between' }}>
+      <span className="muted">{label}</span>
+      <span className={`badge badge--${cls}`}>{text}</span>
+    </div>
+  );
+}
+
+function SlaPanel({ inc }: { inc: IncidentDetail }) {
+  const t = useT();
+  const sla = inc.sla as SlaRecord | null | undefined;
+  return (
+    <Card>
+      <h3>{t('ws.slaTitle')}</h3>
+      {!sla ? (
+        <p className="muted">{t('ws.slaNone')}</p>
+      ) : (
+        <div className="stack" style={{ gap: 'var(--space-2)' }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span className="muted">{t('ws.slaTitle')}</span>
+            <span className={`badge badge--${slaInstanceState(sla) === 'breached' ? 'breached' : slaInstanceState(sla) === 'at_risk' ? 'at_risk' : 'within_target'}`}>
+              {t(`slaState.${slaInstanceState(sla)}`)}
+            </span>
+          </div>
+          <SlaClockRow label={t('ws.responseSla')} targetAt={sla.responseTargetAt} metAt={sla.responseAt} />
+          <SlaClockRow label={t('ws.resolutionSla')} targetAt={sla.resolutionTargetAt} metAt={sla.resolutionMetAt} />
+          {sla.policyName && <div className="muted" style={{ fontSize: 'var(--fs-xs)' }}>{t('ws.slaPolicy', { name: sla.policyName })}</div>}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function EmailPanel({ incidentId, isSupport }: { incidentId: string; isSupport: boolean }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const emails = useQuery({ queryKey: ['emails', incidentId], queryFn: () => api.getIncidentEmails(incidentId) });
+  const [body, setBody] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'internal'>('public');
+  const reply = useMutation({
+    mutationFn: () => api.replyIncident(incidentId, body, visibility),
+    onSuccess: () => { setBody(''); qc.invalidateQueries({ queryKey: ['emails', incidentId] }); qc.invalidateQueries({ queryKey: ['incident', incidentId] }); },
+  });
+
+  // Reporters only see public messages.
+  const list = (emails.data ?? []).filter((m) => isSupport || m.visibility === 'public');
+
+  return (
+    <Card>
+      <h3><Mail size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 6 }} />{t('email.threadTitle')}</h3>
+      {list.length === 0 ? (
+        <p className="muted">{t('email.noThread')}</p>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          {list.map((m) => (
+            <li key={m.id} style={{ border: '1px solid var(--color-border)', borderLeft: `3px solid ${m.visibility === 'internal' ? 'var(--color-warning)' : m.direction === 'inbound' ? 'var(--color-info)' : 'var(--color-primary)'}`, borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-3)' }}>
+              <div className="row" style={{ justifyContent: 'space-between', fontSize: 'var(--fs-xs)' }}>
+                <span className="row" style={{ gap: 6 }}>
+                  <span className="chip">{t(`email.dir.${m.direction}`)}</span>
+                  {m.visibility === 'internal' && <span className="chip">{t('email.vis.internal')}</span>}
+                  <span className="muted">{m.fromAddr} → {m.toAddr}</span>
+                </span>
+                <span className="muted">{new Date(m.createdAt).toLocaleString()} · {m.deliveryState}</span>
+              </div>
+              <div style={{ fontWeight: 'var(--fw-medium)', marginTop: 4 }}>{m.subject}</div>
+              <div className="muted" style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-sm)' }}>{m.body}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {isSupport && (
+        <div className="stack" style={{ marginTop: 'var(--space-3)' }}>
+          <div className="tabs" style={{ marginBottom: 'var(--space-2)' }}>
+            <button className={`tab${visibility === 'public' ? ' is-active' : ''}`} onClick={() => setVisibility('public')}>{t('email.publicReply')}</button>
+            <button className={`tab${visibility === 'internal' ? ' is-active' : ''}`} onClick={() => setVisibility('internal')}>{t('email.internalNote')}</button>
+          </div>
+          <textarea className="textarea" value={body} placeholder={visibility === 'public' ? t('email.replyPlaceholder') : t('email.notePlaceholder')} onChange={(e) => setBody(e.target.value)} />
+          <div>
+            <Button size="sm" disabled={reply.isPending || !body.trim()} onClick={() => reply.mutate()}>{t('email.send')}</Button>
+          </div>
+          {reply.isError && <p className="field__error">{(reply.error as Error)?.message}</p>}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -127,6 +243,11 @@ function TriagePanel({ inc }: { inc: IncidentDetail }) {
   const [impact, setImpact] = useState<ImpactUrgency>((inc.impact as ImpactUrgency) ?? 'medium');
   const [urgency, setUrgency] = useState<ImpactUrgency>((inc.urgency as ImpactUrgency) ?? 'medium');
   const [priority, setPriority] = useState<Priority>(inc.priority ?? inc.prioritySuggested ?? 'P3');
+  const [overrideReason, setOverrideReason] = useState('');
+  const [fieldErr, setFieldErr] = useState<Record<string, string>>({});
+
+  const recommended = inc.prioritySuggested ?? null;
+  const isOverride = !!recommended && recommended !== priority;
 
   return (
     <Card>
@@ -169,8 +290,22 @@ function TriagePanel({ inc }: { inc: IncidentDetail }) {
         </div>
       )}
 
+      {isOverride && (
+        <div className="field">
+          <label>{t('triage.overrideReason')}</label>
+          <p className="muted" style={{ fontSize: 'var(--fs-xs)', margin: '0 0 4px' }}>{t('triage.overrideReasonHint', { recommended: recommended! })}</p>
+          <textarea className="textarea" value={overrideReason} placeholder={t('triage.overrideReasonPlaceholder')} onChange={(e) => setOverrideReason(e.target.value)} aria-invalid={!!fieldErr.overrideReason} />
+          {fieldErr.overrideReason && <span className="field__error">{fieldErr.overrideReason}</span>}
+        </div>
+      )}
+
       <div style={{ marginTop: 'var(--space-3)' }}>
-        <Button disabled={triage.isPending} onClick={() => triage.mutate({ classification, impact, urgency, priority })}>
+        <Button disabled={triage.isPending || (isOverride && !overrideReason.trim())} onClick={() =>
+          triage.mutate(
+            { classification, impact, urgency, priority, overrideReason: isOverride ? overrideReason.trim() : undefined },
+            { onError: (e) => { if (e instanceof ApiError && e.fields) setFieldErr(e.fields); } }
+          )
+        }>
           {triage.isPending ? t('triage.saving') : t('triage.save')}
         </Button>
       </div>

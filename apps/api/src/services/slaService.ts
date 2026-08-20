@@ -1,16 +1,48 @@
-import { computeSlaTargets, evaluateSlaState, type Incident, type SlaRecord } from '@incident/shared';
+import {
+  computeSlaTargets,
+  computeSlaTargetsFromPolicy,
+  evaluateSlaState,
+  resolveSlaPolicy,
+  type Incident,
+  type SlaRecord,
+} from '@incident/shared';
 import { uuid } from '../lib/ids';
 import type { Repositories } from '../repositories/types';
 import { createAlert } from './alertService';
 
 // Start SLA tracking once an incident has a priority and is assigned.
+// v3.0: resolve the applicable SLA policy (by BU + service + priority) with a
+// calendar-aware clock; fall back to the global SlaConfig when no policy matches
+// so pre-v3.0 behavior is exactly preserved.
 export async function startSlaTracking(repos: Repositories, inc: Incident): Promise<void> {
   if (!inc.priority) return;
   const existing = await repos.findSlaByIncident(inc.id);
   if (existing) return;
-  const config = await repos.getSlaConfig();
   const started = new Date();
-  const { responseTargetAt, resolutionTargetAt } = computeSlaTargets(inc.priority, started, config);
+
+  const policies = await repos.listSlaPolicies();
+  const reporter = await repos.findUserById(inc.reporterId);
+  const buId = (inc as { requesterBuId?: string | null }).requesterBuId ?? reporter?.buId ?? null;
+  const serviceId = (inc as { serviceId?: string | null }).serviceId ?? null;
+  const policy = resolveSlaPolicy(policies, { buId, serviceId, priority: inc.priority, requestType: 'incident' }, started);
+
+  let responseTargetAt: Date;
+  let resolutionTargetAt: Date;
+  let policyId: string | null = null;
+  let policyName: string | null = null;
+  let calendarId: string | null = null;
+
+  if (policy) {
+    const calendar = policy.calendarId ? await repos.findBusinessCalendarById(policy.calendarId) : null;
+    ({ responseTargetAt, resolutionTargetAt } = computeSlaTargetsFromPolicy(policy, started, calendar));
+    policyId = policy.id;
+    policyName = policy.name;
+    calendarId = policy.calendarId ?? null;
+  } else {
+    const config = await repos.getSlaConfig();
+    ({ responseTargetAt, resolutionTargetAt } = computeSlaTargets(inc.priority, started, config));
+  }
+
   const record: SlaRecord = {
     id: uuid(),
     incidentId: inc.id,
@@ -21,6 +53,10 @@ export async function startSlaTracking(repos: Repositories, inc: Incident): Prom
     responseState: 'within_target',
     resolutionState: 'within_target',
     startedAt: started.toISOString(),
+    policyId,
+    policyName,
+    calendarId,
+    resolutionMetAt: null,
   };
   await repos.insertSlaRecord(record);
 }

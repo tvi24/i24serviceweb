@@ -11,6 +11,8 @@ import { IncidentWorkspacePage } from './pages/IncidentWorkspacePage';
 import { IntakePage } from './pages/IntakePage';
 import { LoginPage } from './pages/LoginPage';
 import { MyIncidentsPage } from './pages/MyIncidentsPage';
+import { PlatformAdminPage } from './pages/PlatformAdminPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { SlaConfigPage } from './pages/SlaConfigPage';
 
 function RequireAuth() {
@@ -40,6 +42,9 @@ function NotFound() {
 
 function HomeRedirect() {
   const { hasRole } = useAuth();
+  if (hasRole('platform_admin') && !hasRole('service_desk', 'manager', 'application_support', 'infrastructure_support', 'management', 'business_user')) {
+    return <Navigate to="/admin" replace />;
+  }
   if (hasRole('business_user') && !hasRole('service_desk', 'manager', 'application_support', 'infrastructure_support', 'management')) {
     return <Navigate to="/my-incidents" replace />;
   }
@@ -68,6 +73,8 @@ export const router = createBrowserRouter([
       { path: 'alerts', element: <AlertCenterPage /> },
       { path: 'dashboard', element: <RequireRole roles={['manager', 'management']}><DashboardPage /></RequireRole> },
       { path: 'sla-config', element: <RequireRole roles={['manager', 'service_desk']}><SlaConfigPage /></RequireRole> },
+      { path: 'profile', element: <ProfilePage /> },
+      { path: 'admin', element: <RequireRole roles={['platform_admin']}><PlatformAdminPage /></RequireRole> },
       { path: '*', element: <NotFound /> },
     ],
   },

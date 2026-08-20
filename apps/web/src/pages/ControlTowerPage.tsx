@@ -1,21 +1,60 @@
-import { PRIORITIES, STATUS_LABELS, type IncidentFilters, type IncidentStatus, type Priority } from '@incident/shared';
+import { PRIORITIES, STATUS_LABELS, type Incident, type IncidentStatus } from '@incident/shared';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { Button, EmptyState, ErrorState, LoadingSkeleton } from '../components/ui';
 import { IncidentTable } from '../components/IncidentTable';
-import { EmptyState, ErrorState, LoadingSkeleton } from '../components/ui';
 import { useT } from '../i18n/I18nContext';
 import { useIncidents } from '../hooks/useIncidents';
 
 const STATUSES = Object.keys(STATUS_LABELS) as IncidentStatus[];
 
+type Queue = 'all' | 'untriaged' | 'unassigned' | 'p1' | 'p2' | 'at_risk' | 'breached' | 'reopened' | 'mywork';
+const QUEUES: Queue[] = ['all', 'untriaged', 'unassigned', 'p1', 'p2', 'at_risk', 'breached', 'reopened', 'mywork'];
+
 export function ControlTowerPage() {
   const t = useT();
+  const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const [queue, setQueue] = useState<Queue>((params.get('queue') as Queue) || 'all');
   const [status, setStatus] = useState<string>('');
-  const [priority, setPriority] = useState<string>('');
-  const filters: IncidentFilters = {
-    status: (status || undefined) as IncidentStatus | undefined,
-    priority: (priority || undefined) as Priority | undefined,
-  };
-  const { data, isLoading, isError, error } = useIncidents(filters);
+  const [priority, setPriority] = useState<string>(params.get('priority') || '');
+  // Dashboard drill-down filters (from URL): BU / service / support group.
+  const buFilter = params.get('bu');
+  const serviceFilter = params.get('service');
+  const groupFilter = params.get('group');
+  const drill = buFilter ?? serviceFilter ?? groupFilter ?? null;
+  // Fetch the full authorized list, then apply queue + filters client-side so
+  // queues that depend on multiple fields (unassigned, assigned-to-me) work uniformly.
+  const { data, isLoading, isError, error } = useIncidents({});
+
+  function applyQueue(list: Incident[]): Incident[] {
+    switch (queue) {
+      case 'untriaged': return list.filter((i) => i.status === 'new' || i.status === 'triaged');
+      case 'unassigned': return list.filter((i) => !i.assignedOwnerId && i.status !== 'closed');
+      case 'p1': return list.filter((i) => i.priority === 'P1');
+      case 'p2': return list.filter((i) => i.priority === 'P2');
+      case 'at_risk': return list.filter((i) => i.slaState === 'at_risk');
+      case 'breached': return list.filter((i) => i.slaState === 'breached');
+      case 'reopened': return list.filter((i) => i.status === 'reopened');
+      case 'mywork': return list.filter((i) => i.assignedOwnerId === user?.id);
+      default: return list;
+    }
+  }
+
+  function clearDrill() {
+    const next = new URLSearchParams(params);
+    next.delete('bu'); next.delete('service'); next.delete('group');
+    setParams(next);
+  }
+
+  const filtered = (data ?? [])
+    .filter((i) => (status ? i.status === status : true))
+    .filter((i) => (priority ? i.priority === priority : true))
+    .filter((i) => (buFilter ? i.requesterBuId === buFilter : true))
+    .filter((i) => (serviceFilter ? i.serviceId === serviceFilter : true))
+    .filter((i) => (groupFilter ? i.supportGroup === groupFilter : true));
+  const shown = applyQueue(filtered);
 
   return (
     <section>
@@ -36,11 +75,26 @@ export function ControlTowerPage() {
         </div>
       </div>
 
+      {drill && (
+        <div className="row" style={{ marginBottom: 'var(--space-3)' }}>
+          <span className="chip">{t('ct.filtered', { label: drill })}</span>
+          <Button size="sm" variant="ghost" onClick={clearDrill}>{t('ct.clearFilter')}</Button>
+        </div>
+      )}
+
+      <div className="tabs" role="tablist" aria-label={t('nav.queues')}>
+        {QUEUES.map((q) => (
+          <button key={q} role="tab" aria-selected={queue === q} className={`tab${queue === q ? ' is-active' : ''}`} onClick={() => setQueue(q)}>
+            {t(`queue.${q}`)}
+          </button>
+        ))}
+      </div>
+
       {isLoading && <LoadingSkeleton rows={6} />}
       {isError && <ErrorState message={(error as Error)?.message ?? t('ct.loadFailed')} />}
-      {data && (data.length === 0
+      {data && (shown.length === 0
         ? <EmptyState title={t('ct.noMatchTitle')} message={t('ct.noMatchMsg')} />
-        : <IncidentTable incidents={data} />)}
+        : <IncidentTable incidents={shown} />)}
     </section>
   );
 }

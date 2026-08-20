@@ -1,4 +1,5 @@
-import type { AuthUser, Role } from '@incident/shared';
+import type { AuthUser, PermissionKey, Role } from '@incident/shared';
+import { permissionsForRoles } from '@incident/shared';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { setAuthToken } from '../api/apiClient';
 
@@ -14,6 +15,7 @@ interface AuthContextValue {
   setSession: (session: Session) => void;
   logout: () => void;
   hasRole: (...roles: Role[]) => boolean;
+  hasPermission: (...perms: PermissionKey[]) => boolean;
 }
 
 const STORAGE_KEY = 'incident.session';
@@ -56,6 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [session]
   );
 
+  const hasPermission = useCallback(
+    (...perms: PermissionKey[]) => {
+      if (!session) return false;
+      const held = permissionsForRoles(session.user.roles);
+      return perms.some((p) => held.includes(p));
+    },
+    [session]
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user: session?.user ?? null,
@@ -64,8 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession,
       logout,
       hasRole,
+      hasPermission,
     }),
-    [session, setSession, logout, hasRole]
+    [session, setSession, logout, hasRole, hasPermission]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

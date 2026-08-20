@@ -18,3 +18,14 @@
 @media (max-width: 900px) {
   .workspace { grid-template-columns: 1fr; }
 }
+
+/* v3.0 sticky incident header */
+.ws-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--color-bg);
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}

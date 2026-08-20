@@ -1,10 +1,18 @@
 import { DEFAULT_SLA_CONFIG } from '../constants.js';
 import type { AuditEvent, SlaConfig } from '../types.js';
 import { activities, alerts, csats, incidents, slaRecords } from './incidents.js';
+import { businessUnits, departments, locations, organizations, userEmails } from './org.js';
+import { emailAccounts, emailTemplates } from './email.js';
+import { businessCalendars, slaPolicies } from './sla.js';
+import { services } from './services.js';
 import { users } from './users.js';
 
 export { users, WORKSHOP_PASSWORDS } from './users.js';
 export { incidents, activities, slaRecords, alerts, csats } from './incidents.js';
+export { organizations, businessUnits, departments, locations, userEmails } from './org.js';
+export { businessCalendars, slaPolicies } from './sla.js';
+export { services } from './services.js';
+export { emailAccounts, emailTemplates } from './email.js';
 
 export const auditEvents: AuditEvent[] = [
   { id: 'ae-1', actorId: 'u-emma', actorLabel: 'Emma Employee', action: 'incident.created', targetType: 'incident', targetId: 'i-1001', detail: { ticketId: 'INC-2026-001001' }, createdAt: '2026-08-17T07:30:00.000Z' },
@@ -25,5 +33,17 @@ export function seedData() {
     csats,
     auditEvents,
     slaConfig,
+    organizations,
+    businessUnits,
+    departments,
+    locations,
+    userEmails,
+    businessCalendars,
+    slaPolicies,
+    services,
+    emailAccounts,
+    emailTemplates,
+    emailMessages: [] as import('../types.js').EmailMessage[],
+    emailThreads: [] as import('../types.js').EmailThread[],
   });
 }

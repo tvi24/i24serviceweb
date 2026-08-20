@@ -17,10 +17,11 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/intake', labelKey: 'nav.reportIncident', roles: ['business_user'] },
-  { to: '/my-incidents', labelKey: 'nav.myIncidents', roles: ['business_user'] },
-  { to: '/control-tower', labelKey: 'nav.controlTower', roles: ['service_desk', 'application_support', 'infrastructure_support', 'manager', 'management'] },
-  { to: '/dashboard', labelKey: 'nav.dashboard', roles: ['manager', 'management'] },
+  { to: '/my-incidents', labelKey: 'nav.myRequests', roles: ['business_user'] },
+  { to: '/control-tower', labelKey: 'nav.queues', roles: ['service_desk', 'application_support', 'infrastructure_support', 'manager', 'management'] },
+  { to: '/dashboard', labelKey: 'nav.execDashboard', roles: ['manager', 'management'] },
   { to: '/sla-config', labelKey: 'nav.slaConfig', roles: ['manager', 'service_desk'] },
+  { to: '/admin', labelKey: 'nav.admin', roles: ['platform_admin'] },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -67,9 +68,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Bell size={20} aria-hidden="true" />
               {unacked > 0 && <span className="app-shell__badge">{unacked}</span>}
             </NavLink>
-            <div className="app-shell__user">
+            <NavLink to="/profile" className="app-shell__user" aria-label={t('nav.profile')}>
               <span className="app-shell__user-name">{user?.displayName}</span>
-            </div>
+            </NavLink>
             <button className="app-shell__icon-btn" onClick={handleLogout} aria-label={t('shell.signOut')}>
               <LogOut size={18} aria-hidden="true" />
             </button>

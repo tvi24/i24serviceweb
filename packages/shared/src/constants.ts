@@ -13,6 +13,7 @@ export const ROLES: Role[] = [
   'infrastructure_support',
   'manager',
   'management',
+  'platform_admin',
 ];
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -22,7 +23,65 @@ export const ROLE_LABELS: Record<Role, string> = {
   infrastructure_support: 'Infrastructure Support',
   manager: 'Manager',
   management: 'Management',
+  platform_admin: 'Platform Administrator',
 };
+
+// ---- v3.0 granular permission catalog (additive layer over role gate) ----
+export type PermissionKey =
+  | 'org.manage'
+  | 'user.manage'
+  | 'role.manage'
+  | 'supportgroup.manage'
+  | 'service.manage'
+  | 'sla.manage'
+  | 'email.manage'
+  | 'audit.view'
+  | 'dashboard.view'
+  | 'incident.triage'
+  | 'incident.work'
+  | 'incident.report';
+
+export const PERMISSIONS: Record<PermissionKey, string> = {
+  'org.manage': 'Create and edit organization, business units, departments, locations',
+  'user.manage': 'Administer users and profiles',
+  'role.manage': 'Administer roles and permissions',
+  'supportgroup.manage': 'Administer support groups and membership',
+  'service.manage': 'Administer the service catalog',
+  'sla.manage': 'Administer SLA policies and business calendars',
+  'email.manage': 'Administer email accounts and templates',
+  'audit.view': 'View audit trail',
+  'dashboard.view': 'View analytics dashboards',
+  'incident.triage': 'Triage, assign, and prioritize incidents',
+  'incident.work': 'Investigate and resolve incidents',
+  'incident.report': 'Report and track own incidents',
+};
+
+// Default role -> permission mapping. platform_admin holds all configuration permissions
+// and is intentionally separate from manager (refinement spec section 4.1).
+export const ROLE_PERMISSIONS: Record<Role, PermissionKey[]> = {
+  business_user: ['incident.report'],
+  service_desk: ['incident.triage', 'incident.work', 'incident.report'],
+  application_support: ['incident.work', 'incident.report'],
+  infrastructure_support: ['incident.work', 'incident.report'],
+  manager: ['incident.triage', 'incident.work', 'dashboard.view', 'audit.view', 'sla.manage', 'incident.report'],
+  management: ['dashboard.view'],
+  platform_admin: [
+    'org.manage',
+    'user.manage',
+    'role.manage',
+    'supportgroup.manage',
+    'service.manage',
+    'sla.manage',
+    'email.manage',
+    'audit.view',
+  ],
+};
+
+export function permissionsForRoles(roles: Role[]): PermissionKey[] {
+  const set = new Set<PermissionKey>();
+  for (const r of roles) for (const p of ROLE_PERMISSIONS[r] ?? []) set.add(p);
+  return [...set];
+}
 
 export const PRIORITIES: Priority[] = ['P1', 'P2', 'P3', 'P4'];
 
@@ -106,3 +165,19 @@ export const RESOLUTION_CODES = [
   'duplicate',
   'user_error',
 ] as const;
+
+// ---- v3.0 incident dimensions ----
+export const CHANNELS = ['web_portal', 'mail', 'line', 'phone', 'monitoring'] as const;
+
+export const CATEGORIES = ['email', 'access', 'application', 'infrastructure', 'network'] as const;
+
+// Suggested subcategories per category (configurable in spirit; used to populate pickers).
+export const SUBCATEGORIES: Record<string, string[]> = {
+  email: ['delivery', 'performance', 'configuration'],
+  access: ['authentication', 'authorization', 'account_lockout'],
+  application: ['error', 'performance', 'feature_request'],
+  infrastructure: ['server', 'storage', 'database'],
+  network: ['connectivity', 'performance', 'vpn'],
+};
+
+export const REQUEST_TYPES = ['incident', 'service_request'] as const;

@@ -2,6 +2,38 @@
 
 > รายงานภาพรวม workspace และสถานะโครงการ (profile status)
 > อ้างอิงจาก source code จริงในโปรเจกต์ ณ วันที่ 17 สิงหาคม 2026
+> **อัปเดต 19 ส.ค. 2026:** อยู่ระหว่าง Product Refinement v3.0 (Enterprise Service Operations) — ดู §0 ด้านล่าง
+
+---
+
+## 0. สถานะ Product Refinement v3.0 (ล่าสุด)
+
+**ความคืบหน้า: P0 เสร็จครบ 6/6 slice = 100% ของ P0 · งานรวม 9/9 tasks = 100% · verified บน memory + PostgreSQL/Docker จริง**
+
+| Slice (P0) | ขอบเขต | สถานะ |
+|---|---|---|
+| 1 | Org/BU/Department/Location master (CRUD ครบทุก level) + User profile/avatar/email identity + Roles/Permissions + platform_admin | ✅ เสร็จ + verified |
+| 2 | Configurable SLA policy engine + Business Calendar + precedence + calendar-aware clock + mandatory priority override reason + SLA timers | ✅ เสร็จ + verified |
+| 3 | Channel/Service/Category/Subcategory + BU stamping + role workspaces (My Requests + My-SLA, Incident Queues, My Work) + service catalog + sticky header | ✅ เสร็จ + verified |
+| 4 | Email E2E (adapter mock/local, inbound→ticket→acknowledgement→timeline, reply-to-ticket, public reply/internal note, delivery state, email console) | ✅ เสร็จ + verified |
+| 5 | Interactive SLA/BU dashboard (BU/Service/SupportGroup drill-down, numerator/denominator, last-refresh, MTTA/MTTR, untriaged visible) | ✅ เสร็จ + verified |
+| 6 | Hardening: TH/EN normalization (424/424 keys), acceptance tests, live pg/docker re-verify migrations 002–005, UAT scenarios A–F | ✅ เสร็จ + verified |
+
+**ทดสอบบน localhost ได้เลยหรือไม่: ได้ ✅** (ผ่าน build + 76 tests + live round-trip ทั้ง memory และ PostgreSQL/Docker จริง)
+- **วิธีเร็วสุด (mock, ไม่ต้องมี DB):** `npm install` แล้ว `npm run dev` → เปิด `http://localhost:5173` (web ทำงานเต็มรูปแบบด้วยข้อมูลจำลองในหน่วยความจำ)
+- **แบบมี API จริง (memory backend):** `npm run dev` รัน API :3001 + Web :5173 พร้อมกัน (web ค่าเริ่มต้นเป็น mock; ตั้ง `VITE_DATA_MODE=http` เพื่อยิง API จริง)
+- **Docker + PostgreSQL (verified 19 ส.ค. 2026):** `docker compose up -d --build` → 3 services (postgres 18 healthy + api backend=pg + web nginx); เปิด `http://localhost:8080` · migrations 001–005 apply + seed สำเร็จบน Postgres จริง; live round-trip ผ่าน (org/SLA/services/email/KPI + /health db=ok)
+- **บัญชีทดลอง (ทุกคนรหัส `Passw0rd!`):** `admin` (Platform Administrator ใหม่), emma (Business User), sam (Service Desk), alex/ivan (Support), mary (Manager), gary (Management)
+
+**สิ่งที่ลองได้บน localhost ตอนนี้:**
+- เข้าเป็น `admin` → Platform Administration: จัดการ Org/BU/Department/Location (เพิ่ม/แก้/ปิดใช้งานครบทุก level), Users (บทบาท/BU), Roles & Permissions, Support Groups, Services, SLA Policies + Business Calendars, Email accounts + จำลองอีเมลขาเข้า
+- เข้าเป็น emma → Report Incident (เลือก Channel/Service/Category), My Requests + สรุป My-SLA
+- เข้าเป็น sam → Incident Queues (Untriaged/Unassigned/P1/P2/Reopened/Assigned-to-me), triage (บังคับเหตุผลเมื่อ override priority), assign, ตอบกลับอีเมล (public/internal), SLA timers
+- เข้าเป็น mary/gary → Executive Dashboard (ยังเป็นเวอร์ชันเดิม — เวอร์ชัน interactive BU drill-down อยู่ใน Slice 5)
+
+**Verify ล่าสุด:** ทั้ง 3 แพ็กเกจ build สะอาด; 76 tests ผ่านหมด (shared 39, api 23, web 14); live API round-trip ของทุก slice ผ่าน; dev server ทั้ง web/api boot ได้
+
+---
 
 ---
 

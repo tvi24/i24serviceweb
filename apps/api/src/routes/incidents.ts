@@ -1,4 +1,4 @@
-import { CLASSIFICATIONS, RESOLUTION_CODES, type IncidentFilters } from '@incident/shared';
+import { CATEGORIES, CLASSIFICATIONS, RESOLUTION_CODES, type IncidentFilters } from '@incident/shared';
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/authenticate';
@@ -6,6 +6,7 @@ import { authorize } from '../middleware/authorize';
 import { validate } from '../middleware/validate';
 import { getRepositories } from '../repositories';
 import { listIncidentAudit } from '../services/auditService';
+import { agentReply, listIncidentEmails } from '../services/emailService';
 import {
   addNote,
   assignIncident,
@@ -14,6 +15,7 @@ import {
   confirmResolution,
   createIncident,
   getIncidentDetail,
+  getMySlaSummary,
   getSuggestion,
   listIncidents,
   reopenIncident,
@@ -34,7 +36,7 @@ incidentsRouter.post(
   '/',
   authenticate,
   authorize('business_user', 'service_desk'),
-  validate(z.object({ title: z.string().min(1).max(200), description: z.string().min(1).max(5000), impact: iu.optional(), urgency: iu.optional() })),
+  validate(z.object({ title: z.string().min(1).max(200), description: z.string().min(1).max(5000), impact: iu.optional(), urgency: iu.optional(), channel: z.enum(['web_portal', 'mail', 'line', 'phone', 'monitoring']).optional(), serviceId: z.string().nullable().optional(), category: z.enum(CATEGORIES).nullable().optional(), subcategory: z.string().max(60).nullable().optional() })),
   asyncHandler(async (req, res) => {
     const key = (req.headers['idempotency-key'] as string) || undefined;
     const result = await createIncident(repos(), req.body, key, req.user!);
@@ -56,6 +58,15 @@ incidentsRouter.get(
       mine: req.query.mine === 'true',
     };
     res.json(await listIncidents(repos(), filters, req.user!));
+  })
+);
+
+// Reporter's own SLA summary
+incidentsRouter.get(
+  '/my-sla',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    res.json(await getMySlaSummary(repos(), req.user!));
   })
 );
 
@@ -90,7 +101,7 @@ incidentsRouter.patch(
   '/:id/triage',
   authenticate,
   authorize('service_desk', 'manager'),
-  validate(z.object({ classification: z.enum(CLASSIFICATIONS), impact: iu, urgency: iu, priority: z.enum(['P1', 'P2', 'P3', 'P4']) })),
+  validate(z.object({ classification: z.enum(CLASSIFICATIONS), impact: iu, urgency: iu, priority: z.enum(['P1', 'P2', 'P3', 'P4']), overrideReason: z.string().max(500).optional(), serviceId: z.string().nullable().optional(), category: z.enum(CATEGORIES).nullable().optional(), subcategory: z.string().max(60).nullable().optional() })),
   asyncHandler(async (req, res) => {
     res.json(await triageIncident(repos(), String(req.params.id), req.body, req.user!));
   })
@@ -180,5 +191,27 @@ incidentsRouter.get(
   authorize('service_desk', 'manager'),
   asyncHandler(async (req, res) => {
     res.json(await listIncidentAudit(repos(), String(req.params.id)));
+  })
+);
+
+// Email thread for an incident (support + reporter via detail scoping).
+incidentsRouter.get(
+  '/:id/emails',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    // reuse detail-scoping: ensure the actor can see the incident first
+    await getIncidentDetail(repos(), String(req.params.id), req.user!);
+    res.json(await listIncidentEmails(repos(), String(req.params.id)));
+  })
+);
+
+// Agent reply (public email to requester) or internal note.
+incidentsRouter.post(
+  '/:id/reply',
+  authenticate,
+  authorize('service_desk', 'application_support', 'infrastructure_support', 'manager'),
+  validate(z.object({ body: z.string().min(1).max(10000), visibility: z.enum(['public', 'internal']) })),
+  asyncHandler(async (req, res) => {
+    res.json(await agentReply(repos(), String(req.params.id), req.body, req.user!));
   })
 );

@@ -321,3 +321,125 @@ Rationale: user-requested enhancement (2026-08-17). Localization covers interfac
 6. WHEN a user selects a language, THE Web_Portal SHALL persist the selected language in browser local storage and apply it on subsequent visits.
 7. THE Web_Portal SHALL expose the language control on both the authenticated application shell and the login screen.
 8. IF a translation key is missing for the selected language, THEN THE Web_Portal SHALL fall back to the English string without exposing a raw key.
+
+---
+
+## Add-on — Product Refinement v3.0 (Enterprise Service Operations)
+
+> Source: `product refinements/AI_Assisted_Enterprise_Service_Operations_Product_Refinement_v3.0_Kiro.md` (2026-08-19).
+> Evolves the delivered MVP into an enterprise service-operations platform via incremental **P0-first** vertical slices; existing R1–R17 behavior is preserved. New enum/config values default so current data and the 57 tests keep passing. Full traceability recorded in `.aidlc/workflow/incident-management/phase0-assessment.md`.
+> New glossary: **Organization/Business_Unit (BU)/Department** (configurable org hierarchy), **User_Profile** (avatar + contact + preferences), **User_Email** (WORK/PERSONAL/ALTERNATE identity, verifiable), **Permission/Support_Group_Member** (granular RBAC objects), **Platform_Administrator** (separate configuration-control role), **Service/Category/Subcategory** (catalog dimensions distinct from Channel), **SLA_Policy/SLA_Instance** (configurable policy engine), **Business_Calendar** (support hours/holidays/time zone), **Email_Message/Email_Thread/Email_Account** (real email channel), **AI_Recommendation** (per-suggestion record).
+
+### Requirement 18: Organization / Business Unit Master (FR-10, BR-07)
+
+**User Story:** As a Platform_Administrator, I want a configurable organization hierarchy, so that incidents and users carry business-unit context without hard-coded org rules.
+
+#### Acceptance Criteria
+1. THE Incident_Management_System SHALL support a configurable hierarchy of Group, Company, Business_Unit, Department, and Location, and SHALL NOT hard-code the example MGC tree.
+2. THE Incident_Management_System SHALL associate each User with a Business_Unit (and optionally Department, Manager, Location).
+3. WHEN an Incident is created, THE Incident_Management_System SHALL preserve the Requester_BU, and SHALL allow recording Affected_BU and Service_Owner_BU.
+4. THE Incident_Management_System SHALL provide Platform_Administrator UI to create, edit, and deactivate organization entities using Synthetic_Data.
+5. WHERE no Business_Unit applies, THE Incident_Management_System SHALL keep Incident operations functional with an unassigned/unset BU value that remains visible (never silently dropped).
+
+### Requirement 19: User Profile, Avatar, and Email Identity (FR-11, FR-13, BR-06)
+
+**User Story:** As a user, I want a profile with avatar and verifiable email identities, so that my organizational identity and notifications are accurate.
+
+#### Acceptance Criteria
+1. THE Incident_Management_System SHALL let a user maintain profile fields: display name, job title, avatar, organization email, optional personal/alternate email, mobile, preferred language, preferred notification channel, time zone.
+2. THE Incident_Management_System SHALL support avatar upload/change/remove with file-type and size validation, and SHALL show initials as a fallback.
+3. THE Incident_Management_System SHALL treat the verified organization email as the default primary identity.
+4. WHERE a secondary email is added, THE Incident_Management_System SHALL support a verification state and SHALL prevent duplicate ownership of the same verified email unless policy allows.
+5. THE Incident_Management_System SHALL protect personal email fields under RBAC (NFR-09) and SHALL NOT expose them to unauthorized roles.
+
+### Requirement 20: Roles, Permissions, and Support Groups (FR-12)
+
+**User Story:** As a Platform_Administrator, I want role/permission/support-group administration, so that access is least-privilege and configurable.
+
+#### Acceptance Criteria
+1. THE Incident_Management_System SHALL model Role, Permission, User↔Role, Support_Group, and Support_Group_Member as administrable objects.
+2. THE Incident_Management_System SHALL introduce a Platform_Administrator role that is separate from Incident Manager by default and controls organization, users, roles, services, SLA, email, and audit configuration.
+3. THE Incident_Management_System SHALL enforce permissions for page/navigation visibility and for configuration actions in addition to existing role checks, without weakening current R2 RBAC.
+4. WHEN an unauthorized user requests an administration operation, THE Incident_Management_System SHALL reject it without disclosing protected content.
+
+### Requirement 21: Configurable SLA Policy Engine and Business Calendar (FR-17, FR-18, BR-08)
+
+**User Story:** As a Manager/Platform_Administrator, I want SLA policies resolved from configurable conditions with business-calendar-aware clocks, so that targets reflect BU, service, and priority.
+
+#### Acceptance Criteria
+1. THE Incident_Management_System SHALL support SLA_Policy records with conditions (Business_Unit, Service, Priority, Request_Type), Response_Target, Resolution_Target, Business_Calendar, warning threshold, escalation threshold, and effective dates.
+2. WHEN a Case starts SLA tracking, THE Incident_Management_System SHALL create an SLA_Instance from the applicable SLA_Policy resolved by configured precedence.
+3. WHERE no specific SLA_Policy matches, THE Incident_Management_System SHALL fall back to the existing default configuration so current SLA behavior is preserved.
+4. THE Incident_Management_System SHALL support Business_Calendar configuration for support hours, 24x7, weekends, public holidays, and time zone, and SHALL apply it to SLA clock computation.
+5. THE SLA_Instance SHALL expose Not_Started, Running, Paused, At_Risk, Met, Breached, and Cancelled states and SHALL record response/resolution due and met times.
+6. THE Incident_Management_System SHALL retain SLA_Policy and Business_Calendar changes as Audit_Events.
+
+### Requirement 22: Canonical Priority with Governed Override (FR-02 refined, BR-11)
+
+**User Story:** As Service_Desk staff, I want auto-calculated P1–P4 priority with a governed override, so that prioritization is consistent and accountable.
+
+#### Acceptance Criteria
+1. THE Incident_Management_System SHALL auto-calculate Priority as P1–P4 from Impact×Urgency using the configurable Priority_Matrix by default.
+2. WHEN authorized staff overrides the calculated Priority, THE Incident_Management_System SHALL require a mandatory override reason and SHALL record the reason, actor, timestamp, prior value, and new value in an Audit_Event.
+3. THE Incident_Management_System SHALL make the Priority_Matrix editable by the Platform_Administrator.
+
+### Requirement 23: Incident Channel / Service / Category Model (FR refinement, BR-07)
+
+**User Story:** As support staff, I want channel, service, category, and subcategory as distinct fields, so that incidents are classified along real service dimensions.
+
+#### Acceptance Criteria
+1. THE Incident_Management_System SHALL record Channel (Web, Email, LINE, Phone, Monitoring) separately from Service, Category, and Subcategory.
+2. THE Incident_Management_System SHALL provide a configurable Service catalog and Category/Subcategory values.
+3. THE Incident_Management_System SHALL keep these fields optional so existing incidents remain valid, and SHALL keep unset values visible in lists and analytics.
+
+### Requirement 24: End-to-End Email Ticketing (FR-14, FR-15, FR-16, BR-09)
+
+**User Story:** As a Business_User, I want to raise and continue an incident by email, so that email is a real operational channel.
+
+#### Acceptance Criteria
+1. THE Incident_Management_System SHALL implement email via an adapter architecture and SHALL NOT hard-code a single provider, and SHALL NOT store email secrets in source.
+2. WHEN an inbound email is received from a matchable verified user, THE Incident_Management_System SHALL create an Incident (Channel=Email), determine Requester_BU, apply classification/priority/SLA, and send an acknowledgement containing Incident ID, title, status, priority, and SLA summary.
+3. WHEN a user replies to a ticket email that can be reliably matched to an existing Incident, THE Incident_Management_System SHALL append the message to that Incident timeline rather than creating a new Incident.
+4. THE Incident_Management_System SHALL let an agent send an Internal Note or a Public Reply, and Public Reply SHALL email the requester, preserve the thread reference, and record delivery state and the message in the timeline.
+5. THE Incident_Management_System SHALL track Email_Message attributes (message id, thread id, incident id, direction, from/to/cc, subject, timestamp, delivery/processing/error state, attachment metadata) and SHALL provide a Platform_Administrator Email_Account console with test-connection/send-test.
+6. WHERE the external email provider is unavailable, THE Incident_Management_System SHALL remain operational (safe local/mock adapter) and SHALL record integration errors.
+
+### Requirement 25: AI Triage Recommendation Record (FR-23 refined)
+
+**User Story:** As support staff, I want AI triage suggestions I can accept/review/dismiss with a governed record, so that AI stays assistive and auditable.
+
+#### Acceptance Criteria
+1. THE Incident_Management_System SHALL present AI triage suggestions (service, category, impact, urgency, recommended priority, suggested support group) as recommendations requiring human confirmation.
+2. FOR every AI suggestion, THE Incident_Management_System SHALL record suggested value, confidence, model/rule source, human decision (accepted/rejected/overridden), reviewer, and timestamp.
+3. WHERE external AI is unavailable, THE Incident_Management_System SHALL use the rules/mock classifier and remain operational.
+
+### Requirement 26: Interactive SLA & BU Analytics (FR-19, FR-20, FR-22, BR-10, NFR-08)
+
+**User Story:** As a Manager/Executive, I want interactive dashboards traceable to source incidents, so that operational and BU performance are trustworthy.
+
+#### Acceptance Criteria
+1. THE KPI_Dashboard SHALL support Overall, By-BU, By-Service, By-Priority, and By-Support-Group views with time filters (7D/30D/QTD/YTD).
+2. FOR each KPI, THE KPI_Dashboard SHALL expose numerator, denominator, filter context, time range, and last-refresh time.
+3. WHEN a KPI card, segment, or chart element is selected, THE KPI_Dashboard SHALL drill through to the matching source Incident list where permission allows.
+4. THE KPI_Dashboard SHALL keep Unset/Untriaged records visible in totals and SHALL NOT silently exclude them.
+5. THE KPI_Dashboard SHALL present MTTA, MTTR, Re-open rate, CSAT, SLA compliance %, and P1/P2/breached/at-risk counts, calculated from authoritative Incident records.
+
+### Requirement 27: Role-Based Workspaces and Navigation (FR-21, FR refinement)
+
+**User Story:** As each role, I want a workspace tailored to my responsibilities, so that daily work is efficient.
+
+#### Acceptance Criteria
+1. THE Web_Portal SHALL render role-based navigation generated from the authenticated user's permissions.
+2. THE Web_Portal SHALL provide Business_User "My Requests" (with a My-SLA summary: within %, at-risk, breached), Service_Desk "Incident Queues", Resolver "My Work", Manager "Operations Control Tower", Executive "Executive Dashboard", and Platform_Administrator administration workspaces.
+3. THE Incident Workspace SHALL present a sticky incident header (priority, status, SLA state, response/resolution timers), a main work area, and a role-sensitive context panel, keeping fields editable only for permitted roles.
+4. THE Web_Portal SHALL localize all new interface strings (TH/EN) and meet accessibility expectations (R16, R17, NFR-11).
+
+### New Business Rules (v3.0)
+- **BR-06..BR-13** as defined in the refinement spec are adopted; BR-11 (mandatory priority-override reason) and BR-08 (SLA precedence with default fallback) are reflected in R21/R22 above.
+
+### New Non-Functional Requirements (v3.0)
+- **NFR-08 Performance:** main workspace and search/filter target < 2s under normal demo load; dashboards show loading + last-refreshed state.
+- **NFR-09..NFR-13** (Security, Localization, Accessibility, Observability incl. email/SLA/integration health, Data integrity) extend R12/R16/R17/R14 to all new features.
+
+### Delivery Priority
+P0 items (Refinement §22) are implemented first as vertical slices (see `phase0-assessment.md` §E); P1/P2 items are deferred until P0 has acceptance evidence.

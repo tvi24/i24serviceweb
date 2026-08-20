@@ -69,7 +69,7 @@ export async function getIncidentDetail(repos: Repositories, id: string, actor: 
 
 export async function createIncident(
   repos: Repositories,
-  payload: { title: string; description: string; impact?: string; urgency?: string },
+  payload: { title: string; description: string; impact?: string; urgency?: string; channel?: string; serviceId?: string | null; category?: string | null; subcategory?: string | null },
   idempotencyKey: string | undefined,
   actor: AuthUser
 ): Promise<IntakeResponse> {
@@ -90,13 +90,21 @@ export async function createIncident(
   const urgency = (payload.urgency as any) || 'medium';
 
   const seq = await repos.nextTicketSeq();
+  // Stamp organizational context: requester BU from the reporter's profile, and the
+  // service-owner BU from the selected service (kept visible even when unset).
+  const reporter = await repos.findUserById(actor.id);
+  let serviceOwnerBuId: string | null = null;
+  if (payload.serviceId) {
+    const svc = await repos.findServiceById(payload.serviceId);
+    serviceOwnerBuId = svc?.ownerBuId ?? null;
+  }
   const inc: Incident = {
     id: uuid(),
     ticketId: makeTicketId(seq),
     title: payload.title.trim(),
     description: payload.description.trim(),
     reporterId: actor.id,
-    channel: 'web_portal',
+    channel: (payload.channel as any) || 'web_portal',
     classification: null,
     classificationSuggested: suggestion.classification,
     impact: payload.impact ? (impact as any) : null,
@@ -107,6 +115,13 @@ export async function createIncident(
     status: 'new',
     supportGroup: null,
     assignedOwnerId: null,
+    serviceId: payload.serviceId ?? null,
+    category: payload.category ?? null,
+    subcategory: payload.subcategory ?? null,
+    requesterBuId: reporter?.buId ?? null,
+    affectedBuId: reporter?.buId ?? null,
+    serviceOwnerBuId,
+    requestType: 'incident',
     idempotencyKey: idempotencyKey ?? null,
     createdAt: now(),
     updatedAt: now(),
@@ -115,6 +130,31 @@ export async function createIncident(
   await writeAudit(repos, { action: 'incident.created', targetType: 'incident', targetId: inc.id, actor, detail: { ticketId: inc.ticketId } });
 
   return { id: inc.id, ticketId: inc.ticketId, duplicateWarning: dup ? `A similar open incident exists (${dup.ticketId}).` : undefined };
+}
+
+export async function getMySlaSummary(repos: Repositories, actor: AuthUser) {
+  const mine = await repos.listIncidents({ reporterId: actor.id });
+  let withinTarget = 0;
+  let atRisk = 0;
+  let breached = 0;
+  let open = 0;
+  let tracked = 0;
+  for (const inc of mine) {
+    if (inc.status !== 'closed' && inc.status !== 'resolved') open += 1;
+    const sla = await repos.findSlaByIncident(inc.id);
+    if (!sla) continue;
+    tracked += 1;
+    const worst = sla.resolutionState === 'breached' || sla.responseState === 'breached'
+      ? 'breached'
+      : sla.resolutionState === 'at_risk' || sla.responseState === 'at_risk'
+        ? 'at_risk'
+        : 'within_target';
+    if (worst === 'breached') breached += 1;
+    else if (worst === 'at_risk') atRisk += 1;
+    else withinTarget += 1;
+  }
+  const withinPct = tracked === 0 ? null : Math.round((withinTarget / tracked) * 100);
+  return { total: mine.length, open, withinTarget, atRisk, breached, withinPct };
 }
 
 export async function getSuggestion(repos: Repositories, id: string): Promise<Suggestion> {
@@ -127,15 +167,25 @@ export async function getSuggestion(repos: Repositories, id: string): Promise<Su
 export async function triageIncident(repos: Repositories, id: string, req: TriageRequest, actor: AuthUser): Promise<IncidentDetail> {
   const inc = await repos.findIncidentById(id);
   if (!inc) throw Errors.notFound('Incident not found.');
-  const overrode = inc.prioritySuggested && inc.prioritySuggested !== req.priority;
+  const overrode = !!inc.prioritySuggested && inc.prioritySuggested !== req.priority;
+  // BR-11: overriding the recommended priority requires a mandatory reason.
+  if (overrode && (!req.overrideReason || req.overrideReason.trim().length === 0)) {
+    throw Errors.validation('An override reason is required when changing the recommended priority.', {
+      overrideReason: 'Please provide a reason for overriding the recommended priority.',
+    });
+  }
+  const previousPriority = inc.priority;
   inc.classification = req.classification;
   inc.impact = req.impact;
   inc.urgency = req.urgency;
   inc.priority = req.priority;
+  if (req.serviceId !== undefined) inc.serviceId = req.serviceId;
+  if (req.category !== undefined) inc.category = req.category;
+  if (req.subcategory !== undefined) inc.subcategory = req.subcategory;
   if (inc.status === 'new') inc.status = 'triaged';
   inc.updatedAt = now();
   await repos.updateIncident(inc);
-  await writeAudit(repos, { action: 'incident.triaged', targetType: 'incident', targetId: inc.id, actor, detail: { classification: req.classification, priority: req.priority, override: !!overrode, recommended: inc.prioritySuggested } });
+  await writeAudit(repos, { action: 'incident.triaged', targetType: 'incident', targetId: inc.id, actor, detail: { classification: req.classification, priority: req.priority, override: overrode, recommended: inc.prioritySuggested, previousPriority, overrideReason: overrode ? req.overrideReason!.trim() : null } });
   if (req.priority === 'P1' || req.priority === 'P2') {
     await createAlert(repos, { incidentId: inc.id, type: 'priority', severity: req.priority === 'P1' ? 'danger' : 'warning', message: `${req.priority} incident: ${inc.title}`, recipientRole: 'manager', recipientId: null });
   }
@@ -220,6 +270,13 @@ export async function resolveIncident(repos: Repositories, id: string, req: Reso
   inc.updatedAt = now();
   await repos.updateIncident(inc);
   await repos.insertActivity({ id: uuid(), incidentId: inc.id, type: 'resolution', authorId: actor.id, note: req.resolutionNote.trim(), createdAt: now() });
+  // Mark the SLA instance resolution as met (drives the 'met' instance state).
+  const sla = await repos.findSlaByIncident(inc.id);
+  if (sla && !sla.resolutionMetAt) {
+    sla.resolutionMetAt = now();
+    if (!sla.responseAt) sla.responseAt = now();
+    await repos.updateSlaRecord(sla);
+  }
   await ensureCsat(repos, inc.id);
   await writeAudit(repos, { action: 'incident.resolved', targetType: 'incident', targetId: inc.id, actor, detail: { code: req.resolutionCode } });
   await createAlert(repos, { incidentId: inc.id, type: 'status', severity: 'info', message: `Resolved, awaiting confirmation: ${inc.title}`, recipientRole: null, recipientId: inc.reporterId });

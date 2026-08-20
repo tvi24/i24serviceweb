@@ -1,6 +1,8 @@
 # Data Model
 
-All identifiers are UUID v4 unless noted. Timestamps are `timestamptz` (UTC). Monetary/time SLA values are stored in seconds/minutes as noted. No real personal data — all seed data is synthetic.
+> **Reconciliation (2026-08-19, Product Refinement v3.0):** Identifier columns are **`text`** (opaque strings such as `u-emma`, `i-1001`, or a runtime `randomUUID()`), **not `uuid`** — the original `uuid` note below is superseded (fixed in migration `001_init.sql`, verified live). The v3.0 refinement adds entities (organizations, business_units, departments, locations, user_emails, sla_policies, business_calendars, services, email_accounts, email_threads, email_messages, email_templates) plus additive nullable columns on `users`/`incidents`/`sla_records` via migrations `002_org_identity` → `005_email`. Canonical schema for those is documented in `design/refinement-v3.md`; runtime source of truth is the migration SQL files.
+
+Timestamps are `timestamptz` (UTC). Time SLA values are stored in minutes/business-days as noted. No real personal data — all seed data is synthetic.
 
 ## Entities
 

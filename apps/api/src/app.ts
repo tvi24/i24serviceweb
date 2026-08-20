@@ -6,7 +6,9 @@ import { config } from './config';
 import { logger } from './lib/logger';
 import './middleware/context';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { adminRouter, profileRouter } from './routes/admin';
 import { authRouter } from './routes/auth';
+import { emailRouter } from './routes/email';
 import { incidentsRouter } from './routes/incidents';
 import { alertsRouter, configRouter, healthRouter, kpiRouter, usersRouter } from './routes/misc';
 
@@ -38,6 +40,9 @@ export function createApp() {
   app.use('/api/kpi', kpiRouter);
   app.use('/api/config', configRouter);
   app.use('/api/users', usersRouter);
+  app.use('/api/admin', adminRouter);
+  app.use('/api/profile', profileRouter);
+  app.use('/api/email', emailRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

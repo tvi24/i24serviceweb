@@ -26,8 +26,8 @@ export function useAlerts() {
   return useQuery({ queryKey: ['alerts'], queryFn: () => api.listAlerts(), refetchInterval: 20_000 });
 }
 
-export function useKpi() {
-  return useQuery({ queryKey: ['kpi'], queryFn: () => api.getKpi() });
+export function useKpi(range: string = 'all') {
+  return useQuery({ queryKey: ['kpi', range], queryFn: () => api.getKpi(range) });
 }
 
 export function useSlaConfig() {

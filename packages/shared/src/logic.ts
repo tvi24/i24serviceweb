@@ -84,6 +84,102 @@ export function computeSlaTargets(
   return { responseTargetAt, resolutionTargetAt };
 }
 
+// ---- v3.0 SLA policy engine ----
+import type { BusinessCalendar, SlaInstanceState, SlaPolicy, SlaRecord } from './types.js';
+
+// Resolve the most specific active SLA policy for a context. Conditions with a value
+// must match; null conditions are wildcards. More specific matches win. Returns null
+// so the caller can fall back to the global default SlaConfig (preserves prior behavior).
+export function resolveSlaPolicy(
+  policies: SlaPolicy[],
+  ctx: { buId?: string | null; serviceId?: string | null; priority: Priority; requestType?: string | null },
+  now: Date = new Date()
+): SlaPolicy | null {
+  const nowMs = now.getTime();
+  const matches = policies.filter((p) => {
+    if (!p.active) return false;
+    if (p.effectiveFrom && new Date(p.effectiveFrom).getTime() > nowMs) return false;
+    if (p.effectiveTo && new Date(p.effectiveTo).getTime() < nowMs) return false;
+    if (p.buId && p.buId !== ctx.buId) return false;
+    if (p.serviceId && p.serviceId !== ctx.serviceId) return false;
+    if (p.priority && p.priority !== ctx.priority) return false;
+    if (p.requestType && p.requestType !== (ctx.requestType ?? 'incident')) return false;
+    return true;
+  });
+  if (matches.length === 0) return null;
+  const score = (p: SlaPolicy) =>
+    (p.buId ? 8 : 0) + (p.serviceId ? 4 : 0) + (p.priority ? 2 : 0) + (p.requestType ? 1 : 0);
+  return matches.sort((a, b) => score(b) - score(a))[0];
+}
+
+function parseHHMM(s: string): number {
+  const [h, m] = s.split(':').map((x) => parseInt(x, 10));
+  return (h || 0) * 60 + (m || 0);
+}
+function dateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+function isWorkday(d: Date, cal: BusinessCalendar): boolean {
+  return cal.workDays.includes(d.getUTCDay()) && !cal.holidays.includes(dateKey(d));
+}
+
+// Advance a start time by a number of minutes, honoring a business calendar.
+// business_hours: only working days (skipping holidays) and within [workStart, workEnd] count.
+// Workshop simplification: workStart/workEnd are evaluated in UTC (documented in design/refinement-v3.md).
+// 24x7: plain elapsed minutes.
+export function addCalendarMinutes(from: Date, minutes: number, cal?: BusinessCalendar | null): Date {
+  if (!cal || cal.mode === '24x7') return new Date(from.getTime() + minutes * 60_000);
+  const startMin = parseHHMM(cal.workStart);
+  const endMin = parseHHMM(cal.workEnd);
+  const cur = new Date(from.getTime());
+  let remaining = minutes;
+  let guard = 0;
+  const advanceToNextStart = () => {
+    cur.setUTCDate(cur.getUTCDate() + 1);
+    cur.setUTCHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
+  };
+  while (remaining > 0 && guard < 100000) {
+    guard += 1;
+    if (!isWorkday(cur, cal)) { advanceToNextStart(); continue; }
+    const curMinOfDay = cur.getUTCHours() * 60 + cur.getUTCMinutes();
+    if (curMinOfDay < startMin) { cur.setUTCHours(Math.floor(startMin / 60), startMin % 60, 0, 0); continue; }
+    if (curMinOfDay >= endMin) { advanceToNextStart(); continue; }
+    const availableToday = endMin - curMinOfDay;
+    const step = Math.min(remaining, availableToday);
+    cur.setTime(cur.getTime() + step * 60_000);
+    remaining -= step;
+    if (remaining > 0) advanceToNextStart();
+  }
+  return cur;
+}
+
+// Compute response/resolution targets from a policy + optional calendar.
+export function computeSlaTargetsFromPolicy(
+  policy: SlaPolicy,
+  startedAt: Date,
+  calendar?: BusinessCalendar | null
+): { responseTargetAt: Date; resolutionTargetAt: Date } {
+  const responseTargetAt = addCalendarMinutes(startedAt, policy.responseTargetMin, calendar);
+  let resolutionTargetAt: Date;
+  if (typeof policy.resolutionMin === 'number' && policy.resolutionMin != null) {
+    resolutionTargetAt = addCalendarMinutes(startedAt, policy.resolutionMin, calendar);
+  } else if (typeof policy.resolutionBd === 'number' && policy.resolutionBd != null) {
+    resolutionTargetAt = addBusinessDays(startedAt, policy.resolutionBd);
+  } else {
+    resolutionTargetAt = new Date(startedAt.getTime() + 24 * 3600_000);
+  }
+  return { responseTargetAt, resolutionTargetAt };
+}
+
+// Derive the coarse 7-state SLA instance state from a record for display.
+export function slaInstanceState(rec: SlaRecord, now: Date = new Date()): SlaInstanceState {
+  if (rec.resolutionMetAt) return 'met';
+  const resDue = new Date(rec.resolutionTargetAt).getTime();
+  if (now.getTime() >= resDue) return 'breached';
+  if (rec.resolutionState === 'at_risk' || rec.responseState === 'at_risk') return 'at_risk';
+  return 'running';
+}
+
 // ---- SLA state evaluation ----
 export function evaluateSlaState(
   startedAt: Date,
